@@ -1,0 +1,959 @@
+Fri Mar  6 05:18:49 PM EST 2026
+c0711a-s18.ufhpc
+/blue/sai.zhang/chen.yongzhuo/TransferSemi_5/dataset
+Loading required package: Matrix
+Loaded glmnet 4.1-10
+43Folder already exists: /blue/sai.zhang/chen.yongzhuo/TransferSemi_5/dataset/result17
+Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 |Multistart 1 of 1 /Multistart 1 of 1 |Multistart 1 of 1 |                   [[1]]
+ [1]  0.0000000000  0.0000000000  0.0000000000  0.3974266573  0.0816919180
+ [6]  0.0000000000  0.0000000000  0.3267152677  0.0000000000  0.0000000000
+[11]  0.0000000000  0.0000000000  0.0000000000  0.0000000000  0.0042662813
+[16]  0.0000000000  0.0000000000  0.0005629654  0.0684357826  0.0398142365
+[21]  0.0000000000 -0.1661787432  0.0000000000  0.0000000000  0.0000000000
+[26]  0.0000000000  0.0000000000  0.0068638323  0.0000000000  0.0956582580
+[31] -0.0953466448
+
+[[2]]
+ [1]  0.00000000  0.00000000  0.00000000  0.47792959  0.00000000  0.00000000
+ [7]  0.00000000  0.26573948  0.00000000  0.00000000  0.00000000  0.00000000
+[13]  0.00000000  0.00000000  0.02203204  0.00000000  0.00000000  0.00000000
+[19]  0.00000000  0.00000000  0.00000000  0.05604396  0.00000000  0.00000000
+[25]  0.00000000  0.00000000  0.00000000  0.00000000  0.04222394 -0.09697459
+[31]  0.00000000
+
+[[3]]
+ [1]  0.00000000  0.00000000  0.00000000  0.45645074  0.04586283  0.00000000
+ [7]  0.00000000  0.33663719  0.00000000  0.00000000  0.00000000  0.00000000
+[13]  0.00000000  0.00000000  0.04871305  0.00000000  0.00000000  0.00000000
+[19]  0.00000000  0.00000000  0.00000000  0.00000000  0.00000000  0.00000000
+[25]  0.00000000  0.00000000 -0.10289282 -0.10477582 -0.09549775  0.00000000
+[31]  0.13483259
+
+[[4]]
+ [1] 0.000000000 0.009931783 0.000000000 0.486118223 0.154106721 0.000000000
+ [7] 0.000000000 0.253233595 0.000000000 0.000000000 0.000000000 0.000000000
+[13] 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000
+[19] 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000
+[25] 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000
+[31] 0.000000000
+
+[iter 100/1000] pooled MSE = 0.271724
+[iter 200/1000] pooled MSE = 0.303478
+[iter 300/1000] pooled MSE = 0.317165
+[iter 400/1000] pooled MSE = 0.329706
+[iter 500/1000] pooled MSE = 0.344456
+[iter 600/1000] pooled MSE = 0.361064
+[iter 700/1000] pooled MSE = 0.378729
+[iter 800/1000] pooled MSE = 0.396797
+[iter 900/1000] pooled MSE = 0.414815
+[iter 1000/1000] pooled MSE = 0.432482
+[iter 100/1000] pooled MSE = 0.241497
+[iter 200/1000] pooled MSE = 0.252136
+[iter 300/1000] pooled MSE = 0.263896
+[iter 400/1000] pooled MSE = 0.279496
+[iter 500/1000] pooled MSE = 0.298548
+[iter 600/1000] pooled MSE = 0.319637
+[iter 700/1000] pooled MSE = 0.341585
+[iter 800/1000] pooled MSE = 0.363580
+[iter 900/1000] pooled MSE = 0.385101
+[iter 1000/1000] pooled MSE = 0.405828
+[iter 100/1000] pooled MSE = 1.237273
+[iter 200/1000] pooled MSE = 1.331257
+[iter 300/1000] pooled MSE = 1.346954
+[iter 400/1000] pooled MSE = 1.354559
+[iter 500/1000] pooled MSE = 1.360929
+[iter 600/1000] pooled MSE = 1.366911
+[iter 700/1000] pooled MSE = 1.372604
+[iter 800/1000] pooled MSE = 1.378007
+[iter 900/1000] pooled MSE = 1.383115
+[iter 1000/1000] pooled MSE = 1.387930
+[iter 100/1000] pooled MSE = 0.368168
+[iter 200/1000] pooled MSE = 0.412788
+[iter 300/1000] pooled MSE = 0.439979
+[iter 400/1000] pooled MSE = 0.466683
+[iter 500/1000] pooled MSE = 0.495583
+[iter 600/1000] pooled MSE = 0.525788
+[iter 700/1000] pooled MSE = 0.556223
+[iter 800/1000] pooled MSE = 0.586140
+[iter 900/1000] pooled MSE = 0.615088
+[iter 1000/1000] pooled MSE = 0.642823
+[iter 100/1000] pooled MSE = 0.379350
+[iter 200/1000] pooled MSE = 0.398506
+[iter 300/1000] pooled MSE = 0.408636
+[iter 400/1000] pooled MSE = 0.418523
+[iter 500/1000] pooled MSE = 0.429650
+[iter 600/1000] pooled MSE = 0.441582
+[iter 700/1000] pooled MSE = 0.453770
+[iter 800/1000] pooled MSE = 0.465820
+[iter 900/1000] pooled MSE = 0.477481
+[iter 1000/1000] pooled MSE = 0.488604
+[iter 100/1000] pooled MSE = 1.572911
+[iter 200/1000] pooled MSE = 1.734681
+[iter 300/1000] pooled MSE = 1.764972
+[iter 400/1000] pooled MSE = 1.778602
+[iter 500/1000] pooled MSE = 1.789277
+[iter 600/1000] pooled MSE = 1.799257
+[iter 700/1000] pooled MSE = 1.808877
+[iter 800/1000] pooled MSE = 1.818133
+[iter 900/1000] pooled MSE = 1.826984
+[iter 1000/1000] pooled MSE = 1.835406
+[iter 100/2000] pooled MSE = 1.268083
+[iter 200/2000] pooled MSE = 1.254363
+[iter 300/2000] pooled MSE = 1.245254
+[iter 400/2000] pooled MSE = 1.238859
+[iter 500/2000] pooled MSE = 1.234177
+[iter 600/2000] pooled MSE = 1.230633
+[iter 700/2000] pooled MSE = 1.227872
+[iter 800/2000] pooled MSE = 1.225670
+[iter 900/2000] pooled MSE = 1.223879
+[iter 1000/2000] pooled MSE = 1.222397
+[iter 1100/2000] pooled MSE = 1.221153
+[iter 1200/2000] pooled MSE = 1.220096
+[iter 1300/2000] pooled MSE = 1.219189
+[iter 1400/2000] pooled MSE = 1.218403
+[iter 1500/2000] pooled MSE = 1.217717
+[iter 1600/2000] pooled MSE = 1.217114
+[iter 1700/2000] pooled MSE = 1.216580
+[iter 1800/2000] pooled MSE = 1.216106
+[iter 1900/2000] pooled MSE = 1.215683
+[iter 2000/2000] pooled MSE = 1.215304
+[iter 100/2000] pooled MSE = 0.899912
+[iter 200/2000] pooled MSE = 0.891770
+[iter 300/2000] pooled MSE = 0.886030
+[iter 400/2000] pooled MSE = 0.881773
+[iter 500/2000] pooled MSE = 0.878499
+[iter 600/2000] pooled MSE = 0.875911
+[iter 700/2000] pooled MSE = 0.873822
+[iter 800/2000] pooled MSE = 0.872107
+[iter 900/2000] pooled MSE = 0.870679
+[iter 1000/2000] pooled MSE = 0.869475
+[iter 1100/2000] pooled MSE = 0.868451
+[iter 1200/2000] pooled MSE = 0.867571
+[iter 1300/2000] pooled MSE = 0.866810
+[iter 1400/2000] pooled MSE = 0.866146
+[iter 1500/2000] pooled MSE = 0.865564
+[iter 1600/2000] pooled MSE = 0.865052
+[iter 1700/2000] pooled MSE = 0.864597
+[iter 1800/2000] pooled MSE = 0.864193
+[iter 1900/2000] pooled MSE = 0.863833
+[iter 2000/2000] pooled MSE = 0.863509
+Step1 pERM 100 loss = 0.5647827 
+Step1 pERM 200 loss = 0.5022244 
+Step1 pERM 300 loss = 0.4653768 
+Step1 pERM 400 loss = 0.4226708 
+Step1 pERM 500 loss = 0.3897337 
+Step1 pERM 600 loss = 0.3583999 
+Step1 pERM 700 loss = 0.3340203 
+Step1 pERM 800 loss = 0.3106002 
+Step1 pERM 900 loss = 0.2930393 
+Step1 pERM 1000 loss = 0.2809491 
+Step1 pERM 1100 loss = 0.2696486 
+Step1 pERM 1200 loss = 0.2586529 
+Step1 pERM 1300 loss = 0.2629001 
+Step1 pERM 1400 loss = 0.2548103 
+Step1 pERM 1500 loss = 0.2521153 
+Step1 pERM 1600 loss = 0.2476302 
+Step1 pERM 1700 loss = 0.2458172 
+Step1 pERM 1800 loss = 0.2420352 
+Step1 pERM 1900 loss = 0.2382965 
+Step1 pERM 2000 loss = 0.2385686 
+Step1 pERM 2100 loss = 0.2363377 
+Step1 pERM 2200 loss = 0.2318969 
+Step1 pERM 2300 loss = 0.231767 
+Step1 pERM 2400 loss = 0.2288862 
+Step1 pERM 2500 loss = 0.2262313 
+Step1 pERM 2600 loss = 0.2231416 
+Step1 pERM 2700 loss = 0.2227211 
+Step1 pERM 2800 loss = 0.2182882 
+Step1 pERM 2900 loss = 0.218782 
+Step1 pERM 3000 loss = 0.217439 
+Step1 pERM 3100 loss = 0.2130446 
+Step1 pERM 3200 loss = 0.2138017 
+Step1 pERM 3300 loss = 0.2075106 
+Step1 pERM 3400 loss = 0.207844 
+Step1 pERM 3500 loss = 0.2064545 
+Step1 pERM 3600 loss = 0.2006166 
+Step1 pERM 3700 loss = 0.2006235 
+Step1 pERM 3800 loss = 0.1992767 
+Step1 pERM 3900 loss = 0.1955468 
+Step1 pERM 4000 loss = 0.1938882 
+Step1 pERM 4100 loss = 0.1926069 
+Step1 pERM 4200 loss = 0.1926618 
+Step1 pERM 4300 loss = 0.1862457 
+Step1 pERM 4400 loss = 0.1856487 
+Step1 pERM 4500 loss = 0.1811382 
+Step1 pERM 4600 loss = 0.1809607 
+Step1 pERM 4700 loss = 0.1800623 
+Step1 pERM 4800 loss = 0.1802349 
+Step1 pERM 4900 loss = 0.1778564 
+Step1 pERM 5000 loss = 0.1725846 
+Step 1 completed.
+Step2 pERM 100 loss = 2101.98 
+Step2 pERM 200 loss = 2056.07 
+Step2 pERM 300 loss = 2012.917 
+Step2 pERM 400 loss = 1971.902 
+Step2 pERM 500 loss = 1932.666 
+Step2 pERM 600 loss = 1894.98 
+Step2 pERM 700 loss = 1858.685 
+Step2 pERM 800 loss = 1823.661 
+Step2 pERM 900 loss = 1789.834 
+Step2 pERM 1000 loss = 1757.152 
+Step2 pERM 1100 loss = 1725.575 
+Step2 pERM 1200 loss = 1695.041 
+Step2 pERM 1300 loss = 1665.442 
+Step2 pERM 1400 loss = 1637.227 
+Step2 pERM 1500 loss = 1610.687 
+Step2 pERM 1600 loss = 1584.851 
+Step2 pERM 1700 loss = 1559.681 
+Step2 pERM 1800 loss = 1535.147 
+Step2 pERM 1900 loss = 1511.235 
+Step2 pERM 2000 loss = 1487.917 
+Step2 pERM 2100 loss = 1465.171 
+Step2 pERM 2200 loss = 1442.981 
+Step2 pERM 2300 loss = 1421.319 
+Step2 pERM 2400 loss = 1400.169 
+Step2 pERM 2500 loss = 1379.512 
+Step2 pERM 2600 loss = 1359.322 
+Step2 pERM 2700 loss = 1339.583 
+Step2 pERM 2800 loss = 1320.276 
+Step2 pERM 2900 loss = 1301.388 
+Step2 pERM 3000 loss = 1282.899 
+Step2 pERM 3100 loss = 1264.791 
+Step2 pERM 3200 loss = 1247.051 
+Step2 pERM 3300 loss = 1229.665 
+Step2 pERM 3400 loss = 1212.616 
+Step2 pERM 3500 loss = 1195.904 
+Step2 pERM 3600 loss = 1179.484 
+Step2 pERM 3700 loss = 1163.378 
+Step2 pERM 3800 loss = 1147.563 
+Step2 pERM 3900 loss = 1132.026 
+Step2 pERM 4000 loss = 1116.755 
+Step2 pERM 4100 loss = 1101.745 
+Step2 pERM 4200 loss = 1086.986 
+Step2 pERM 4300 loss = 1072.468 
+Step2 pERM 4400 loss = 1058.18 
+Step2 pERM 4500 loss = 1044.115 
+Step2 pERM 4600 loss = 1030.263 
+Step2 pERM 4700 loss = 1016.618 
+Step2 pERM 4800 loss = 1003.168 
+Step2 pERM 4900 loss = 989.906 
+Step2 pERM 5000 loss = 976.8236 
+Step 2 completed.
+Step1 pERM 100 loss = 0.5756026 
+Step1 pERM 200 loss = 0.5265598 
+Step1 pERM 300 loss = 0.5043794 
+Step1 pERM 400 loss = 0.4800424 
+Step1 pERM 500 loss = 0.4651977 
+Step1 pERM 600 loss = 0.4577033 
+Step1 pERM 700 loss = 0.4515128 
+Step1 pERM 800 loss = 0.4449221 
+Step1 pERM 900 loss = 0.4421722 
+Step1 pERM 1000 loss = 0.4407843 
+Step1 pERM 1100 loss = 0.4372423 
+Step1 pERM 1200 loss = 0.4323951 
+Step1 pERM 1300 loss = 0.4298759 
+Step1 pERM 1400 loss = 0.4272106 
+Step1 pERM 1500 loss = 0.4249415 
+Step1 pERM 1600 loss = 0.4200371 
+Step1 pERM 1700 loss = 0.4196059 
+Step1 pERM 1800 loss = 0.4148277 
+Step1 pERM 1900 loss = 0.4109822 
+Step1 pERM 2000 loss = 0.4087411 
+Step1 pERM 2100 loss = 0.4054954 
+Step1 pERM 2200 loss = 0.4042497 
+Step1 pERM 2300 loss = 0.4035168 
+Step1 pERM 2400 loss = 0.4011267 
+Step1 pERM 2500 loss = 0.3983104 
+Step1 pERM 2600 loss = 0.3987511 
+Step1 pERM 2700 loss = 0.3942912 
+Step1 pERM 2800 loss = 0.3938113 
+Step1 pERM 2900 loss = 0.3929057 
+Step1 pERM 3000 loss = 0.3936575 
+Step1 pERM 3100 loss = 0.3909651 
+Step1 pERM 3200 loss = 0.3892848 
+Step1 pERM 3300 loss = 0.3893408 
+Step1 pERM 3400 loss = 0.388334 
+Step1 pERM 3500 loss = 0.3870647 
+Step1 pERM 3600 loss = 0.3845533 
+Step1 pERM 3700 loss = 0.3834855 
+Step1 pERM 3800 loss = 0.3849509 
+Step1 pERM 3900 loss = 0.3847839 
+Step1 pERM 4000 loss = 0.3807099 
+Step1 pERM 4100 loss = 0.3806706 
+Step1 pERM 4200 loss = 0.3808514 
+Step1 pERM 4300 loss = 0.3791766 
+Step1 pERM 4400 loss = 0.3775037 
+Step1 pERM 4500 loss = 0.3787584 
+Step1 pERM 4600 loss = 0.377253 
+Step1 pERM 4700 loss = 0.3784174 
+Step1 pERM 4800 loss = 0.377044 
+Step1 pERM 4900 loss = 0.3770701 
+Step1 pERM 5000 loss = 0.3765046 
+Step 1 completed.
+Step2 pERM 100 loss = 624.3011 
+Step2 pERM 200 loss = 594.4035 
+Step2 pERM 300 loss = 566.9596 
+Step2 pERM 400 loss = 541.6805 
+Step2 pERM 500 loss = 518.3455 
+Step2 pERM 600 loss = 496.7582 
+Step2 pERM 700 loss = 476.7487 
+Step2 pERM 800 loss = 458.1783 
+Step2 pERM 900 loss = 440.9352 
+Step2 pERM 1000 loss = 424.923 
+Step2 pERM 1100 loss = 410.0464 
+Step2 pERM 1200 loss = 396.2047 
+Step2 pERM 1300 loss = 383.2948 
+Step2 pERM 1400 loss = 371.2187 
+Step2 pERM 1500 loss = 359.8875 
+Step2 pERM 1600 loss = 349.2225 
+Step2 pERM 1700 loss = 339.1538 
+Step2 pERM 1800 loss = 329.6495 
+Step2 pERM 1900 loss = 322.2909 
+Step2 pERM 2000 loss = 315.2457 
+Step2 pERM 2100 loss = 308.4589 
+Step2 pERM 2200 loss = 301.9034 
+Step2 pERM 2300 loss = 295.5686 
+Step2 pERM 2400 loss = 289.4324 
+Step2 pERM 2500 loss = 283.4909 
+Step2 pERM 2600 loss = 277.7203 
+Step2 pERM 2700 loss = 272.1237 
+Step2 pERM 2800 loss = 266.6819 
+Step2 pERM 2900 loss = 261.3927 
+Step2 pERM 3000 loss = 256.2416 
+Step2 pERM 3100 loss = 251.2289 
+Step2 pERM 3200 loss = 246.3401 
+Step2 pERM 3300 loss = 241.5671 
+Step2 pERM 3400 loss = 236.9132 
+Step2 pERM 3500 loss = 232.3591 
+Step2 pERM 3600 loss = 227.9075 
+Step2 pERM 3700 loss = 223.5535 
+Step2 pERM 3800 loss = 219.281 
+Step2 pERM 3900 loss = 215.0923 
+Step2 pERM 4000 loss = 210.9804 
+Step2 pERM 4100 loss = 206.9447 
+Step2 pERM 4200 loss = 202.9682 
+Step2 pERM 4300 loss = 199.0564 
+Step2 pERM 4400 loss = 195.2006 
+Step2 pERM 4500 loss = 191.4008 
+Step2 pERM 4600 loss = 187.6452 
+Step2 pERM 4700 loss = 183.9378 
+Step2 pERM 4800 loss = 180.2669 
+Step2 pERM 4900 loss = 176.6382 
+Step2 pERM 5000 loss = 173.0426 
+Step 2 completed.
+Step1 pERM 100 loss = 0.6179867 
+Step1 pERM 200 loss = 0.5936069 
+Step1 pERM 300 loss = 0.587897 
+Step1 pERM 400 loss = 0.5738672 
+Step1 pERM 500 loss = 0.5742487 
+Step1 pERM 600 loss = 0.5628312 
+Step1 pERM 700 loss = 0.5632171 
+Step1 pERM 800 loss = 0.5595719 
+Step1 pERM 900 loss = 0.5513368 
+Step1 pERM 1000 loss = 0.5524676 
+Step1 pERM 1100 loss = 0.5481156 
+Step1 pERM 1200 loss = 0.5475637 
+Step1 pERM 1300 loss = 0.5477844 
+Step1 pERM 1400 loss = 0.5481476 
+Step1 pERM 1500 loss = 0.5449764 
+Step1 pERM 1600 loss = 0.5438809 
+Step1 pERM 1700 loss = 0.542522 
+Step1 pERM 1800 loss = 0.5434731 
+Step1 pERM 1900 loss = 0.5409862 
+Step1 pERM 2000 loss = 0.5420873 
+Step1 pERM 2100 loss = 0.5384253 
+Step1 pERM 2200 loss = 0.5382816 
+Step1 pERM 2300 loss = 0.5370481 
+Step1 pERM 2400 loss = 0.536491 
+Step1 pERM 2500 loss = 0.5342548 
+Step1 pERM 2600 loss = 0.5337097 
+Step1 pERM 2700 loss = 0.5336426 
+Step1 pERM 2800 loss = 0.5335065 
+Step1 pERM 2900 loss = 0.5317723 
+Step1 pERM 3000 loss = 0.5300356 
+Step1 pERM 3100 loss = 0.5307891 
+Step1 pERM 3200 loss = 0.5288456 
+Step1 pERM 3300 loss = 0.5275035 
+Step1 pERM 3400 loss = 0.526226 
+Step1 pERM 3500 loss = 0.5274141 
+Step1 pERM 3600 loss = 0.5273585 
+Step1 pERM 3700 loss = 0.5261299 
+Step1 pERM 3800 loss = 0.526039 
+Step1 pERM 3900 loss = 0.5248473 
+Step1 pERM 4000 loss = 0.5227192 
+Step1 pERM 4100 loss = 0.5251354 
+Step1 pERM 4200 loss = 0.5227182 
+Step1 pERM 4300 loss = 0.5235266 
+Step1 pERM 4400 loss = 0.5215399 
+Step1 pERM 4500 loss = 0.5204223 
+Step1 pERM 4600 loss = 0.5223055 
+Step1 pERM 4700 loss = 0.5207668 
+Step1 pERM 4800 loss = 0.5195779 
+Step1 pERM 4900 loss = 0.5204631 
+Step1 pERM 5000 loss = 0.516709 
+Step 1 completed.
+Step2 pERM 100 loss = 337.7285 
+Step2 pERM 200 loss = 311.0614 
+Step2 pERM 300 loss = 286.7849 
+Step2 pERM 400 loss = 264.6813 
+Step2 pERM 500 loss = 244.6086 
+Step2 pERM 600 loss = 226.4439 
+Step2 pERM 700 loss = 210.0454 
+Step2 pERM 800 loss = 195.2216 
+Step2 pERM 900 loss = 181.7551 
+Step2 pERM 1000 loss = 169.4456 
+Step2 pERM 1100 loss = 158.1167 
+Step2 pERM 1200 loss = 147.6264 
+Step2 pERM 1300 loss = 138.992 
+Step2 pERM 1400 loss = 131.1098 
+Step2 pERM 1500 loss = 123.6975 
+Step2 pERM 1600 loss = 116.7351 
+Step2 pERM 1700 loss = 110.1911 
+Step2 pERM 1800 loss = 104.0315 
+Step2 pERM 1900 loss = 98.50456 
+Step2 pERM 2000 loss = 93.90759 
+Step2 pERM 2100 loss = 89.53666 
+Step2 pERM 2200 loss = 85.37278 
+Step2 pERM 2300 loss = 81.39471 
+Step2 pERM 2400 loss = 77.59961 
+Step2 pERM 2500 loss = 73.96409 
+Step2 pERM 2600 loss = 70.47938 
+Step2 pERM 2700 loss = 67.13697 
+Step2 pERM 2800 loss = 63.92255 
+Step2 pERM 2900 loss = 60.82495 
+Step2 pERM 3000 loss = 57.83479 
+Step2 pERM 3100 loss = 54.9356 
+Step2 pERM 3200 loss = 52.11969 
+Step2 pERM 3300 loss = 49.38162 
+Step2 pERM 3400 loss = 46.70633 
+Step2 pERM 3500 loss = 44.09176 
+Step2 pERM 3600 loss = 41.53376 
+Step2 pERM 3700 loss = 39.01722 
+Step2 pERM 3800 loss = 36.54961 
+Step2 pERM 3900 loss = 34.13234 
+Step2 pERM 4000 loss = 31.74997 
+Step2 pERM 4100 loss = 29.41375 
+Step2 pERM 4200 loss = 27.11483 
+Step2 pERM 4300 loss = 24.85964 
+Step2 pERM 4400 loss = 22.64673 
+Step2 pERM 4500 loss = 20.46953 
+Step2 pERM 4600 loss = 18.33619 
+Step2 pERM 4700 loss = 16.23939 
+Step2 pERM 4800 loss = 14.18082 
+Step2 pERM 4900 loss = 12.15472 
+Step2 pERM 5000 loss = 10.73683 
+Step 2 completed.
+Step1 pERM 100 loss = 0.5660553 
+Step1 pERM 200 loss = 0.4759871 
+Step1 pERM 300 loss = 0.3895636 
+Step1 pERM 400 loss = 0.3266797 
+Step1 pERM 500 loss = 0.2891205 
+Step1 pERM 600 loss = 0.2648184 
+Step1 pERM 700 loss = 0.2328362 
+Step1 pERM 800 loss = 0.2218117 
+Step1 pERM 900 loss = 0.2071717 
+Step1 pERM 1000 loss = 0.1991173 
+Step1 pERM 1100 loss = 0.1860522 
+Step1 pERM 1200 loss = 0.1800295 
+Step1 pERM 1300 loss = 0.168522 
+Step1 pERM 1400 loss = 0.164928 
+Step1 pERM 1500 loss = 0.1485435 
+Step1 pERM 1600 loss = 0.1393795 
+Step1 pERM 1700 loss = 0.1298966 
+Step1 pERM 1800 loss = 0.1222511 
+Step1 pERM 1900 loss = 0.1083104 
+Step1 pERM 2000 loss = 0.09618531 
+Step1 pERM 2100 loss = 0.08638434 
+Step1 pERM 2200 loss = 0.08169969 
+Step1 pERM 2300 loss = 0.07071828 
+Step1 pERM 2400 loss = 0.06440897 
+Step1 pERM 2500 loss = 0.06304289 
+Step1 pERM 2600 loss = 0.05480381 
+Step1 pERM 2700 loss = 0.05044283 
+Step1 pERM 2800 loss = 0.04265087 
+Step1 pERM 2900 loss = 0.03696854 
+Step1 pERM 3000 loss = 0.0329578 
+Step1 pERM 3100 loss = 0.02924428 
+Step1 pERM 3200 loss = 0.03317861 
+Step1 pERM 3300 loss = 0.02834043 
+Step1 pERM 3400 loss = 0.02701939 
+Step1 pERM 3500 loss = 0.02601787 
+Step1 pERM 3600 loss = 0.02486353 
+Step1 pERM 3700 loss = 0.0201747 
+Step1 pERM 3800 loss = 0.02359389 
+Step1 pERM 3900 loss = 0.01894369 
+Step1 pERM 4000 loss = 0.0250131 
+Step1 pERM 4100 loss = 0.01869706 
+Step1 pERM 4200 loss = 0.02167758 
+Step1 pERM 4300 loss = 0.02162179 
+Step1 pERM 4400 loss = 0.01870916 
+Step1 pERM 4500 loss = 0.01896766 
+Step1 pERM 4600 loss = 0.0159442 
+Step1 pERM 4700 loss = 0.01521067 
+Step1 pERM 4800 loss = 0.01762774 
+Step1 pERM 4900 loss = 0.01640667 
+Step1 pERM 5000 loss = 0.01780432 
+Step 1 completed.
+Step2 pERM 100 loss = 2204.474 
+Step2 pERM 200 loss = 2150.652 
+Step2 pERM 300 loss = 2099.066 
+Step2 pERM 400 loss = 2049.417 
+Step2 pERM 500 loss = 2001.557 
+Step2 pERM 600 loss = 1955.374 
+Step2 pERM 700 loss = 1910.767 
+Step2 pERM 800 loss = 1867.643 
+Step2 pERM 900 loss = 1825.913 
+Step2 pERM 1000 loss = 1785.496 
+Step2 pERM 1100 loss = 1746.314 
+Step2 pERM 1200 loss = 1708.297 
+Step2 pERM 1300 loss = 1671.38 
+Step2 pERM 1400 loss = 1635.503 
+Step2 pERM 1500 loss = 1600.61 
+Step2 pERM 1600 loss = 1566.652 
+Step2 pERM 1700 loss = 1533.578 
+Step2 pERM 1800 loss = 1501.341 
+Step2 pERM 1900 loss = 1469.897 
+Step2 pERM 2000 loss = 1439.203 
+Step2 pERM 2100 loss = 1409.22 
+Step2 pERM 2200 loss = 1379.912 
+Step2 pERM 2300 loss = 1351.246 
+Step2 pERM 2400 loss = 1323.196 
+Step2 pERM 2500 loss = 1295.738 
+Step2 pERM 2600 loss = 1268.851 
+Step2 pERM 2700 loss = 1242.523 
+Step2 pERM 2800 loss = 1216.74 
+Step2 pERM 2900 loss = 1191.496 
+Step2 pERM 3000 loss = 1166.784 
+Step2 pERM 3100 loss = 1142.603 
+Step2 pERM 3200 loss = 1118.952 
+Step2 pERM 3300 loss = 1095.829 
+Step2 pERM 3400 loss = 1073.233 
+Step2 pERM 3500 loss = 1051.161 
+Step2 pERM 3600 loss = 1029.606 
+Step2 pERM 3700 loss = 1008.557 
+Step2 pERM 3800 loss = 988.0017 
+Step2 pERM 3900 loss = 967.9214 
+Step2 pERM 4000 loss = 948.2958 
+Step2 pERM 4100 loss = 929.1014 
+Step2 pERM 4200 loss = 910.3135 
+Step2 pERM 4300 loss = 891.9069 
+Step2 pERM 4400 loss = 873.8574 
+Step2 pERM 4500 loss = 856.1426 
+Step2 pERM 4600 loss = 838.7427 
+Step2 pERM 4700 loss = 821.6394 
+Step2 pERM 4800 loss = 804.8132 
+Step2 pERM 4900 loss = 788.2422 
+Step2 pERM 5000 loss = 771.9039 
+Step 2 completed.
+Step1 pERM 100 loss = 0.6386752 
+Step1 pERM 200 loss = 0.6058681 
+Step1 pERM 300 loss = 0.5909851 
+Step1 pERM 400 loss = 0.572672 
+Step1 pERM 500 loss = 0.5738633 
+Step1 pERM 600 loss = 0.5642141 
+Step1 pERM 700 loss = 0.5618143 
+Step1 pERM 800 loss = 0.5576403 
+Step1 pERM 900 loss = 0.5516764 
+Step1 pERM 1000 loss = 0.5491277 
+Step1 pERM 1100 loss = 0.5470819 
+Step1 pERM 1200 loss = 0.5445376 
+Step1 pERM 1300 loss = 0.5420357 
+Step1 pERM 1400 loss = 0.5400394 
+Step1 pERM 1500 loss = 0.5365192 
+Step1 pERM 1600 loss = 0.5334577 
+Step1 pERM 1700 loss = 0.5308005 
+Step1 pERM 1800 loss = 0.5290505 
+Step1 pERM 1900 loss = 0.5259208 
+Step1 pERM 2000 loss = 0.5232698 
+Step1 pERM 2100 loss = 0.5233291 
+Step1 pERM 2200 loss = 0.5205826 
+Step1 pERM 2300 loss = 0.5154486 
+Step1 pERM 2400 loss = 0.5166033 
+Step1 pERM 2500 loss = 0.5132516 
+Step1 pERM 2600 loss = 0.5105932 
+Step1 pERM 2700 loss = 0.5087033 
+Step1 pERM 2800 loss = 0.5053492 
+Step1 pERM 2900 loss = 0.5041986 
+Step1 pERM 3000 loss = 0.5054877 
+Step1 pERM 3100 loss = 0.5013096 
+Step1 pERM 3200 loss = 0.5011179 
+Step1 pERM 3300 loss = 0.5002019 
+Step1 pERM 3400 loss = 0.4994104 
+Step1 pERM 3500 loss = 0.4985133 
+Step1 pERM 3600 loss = 0.4996547 
+Step1 pERM 3700 loss = 0.4951441 
+Step1 pERM 3800 loss = 0.4934257 
+Step1 pERM 3900 loss = 0.4922477 
+Step1 pERM 4000 loss = 0.4972392 
+Step1 pERM 4100 loss = 0.4908266 
+Step1 pERM 4200 loss = 0.4913123 
+Step1 pERM 4300 loss = 0.4910079 
+Step1 pERM 4400 loss = 0.4880522 
+Step1 pERM 4500 loss = 0.4904634 
+Step1 pERM 4600 loss = 0.4926095 
+Step1 pERM 4700 loss = 0.4877363 
+Step1 pERM 4800 loss = 0.4864934 
+Step1 pERM 4900 loss = 0.4874382 
+Step1 pERM 5000 loss = 0.48819 
+Step 1 completed.
+Step2 pERM 100 loss = 687.3091 
+Step2 pERM 200 loss = 654.6012 
+Step2 pERM 300 loss = 623.9644 
+Step2 pERM 400 loss = 595.1671 
+Step2 pERM 500 loss = 568.0266 
+Step2 pERM 600 loss = 542.356 
+Step2 pERM 700 loss = 517.9642 
+Step2 pERM 800 loss = 494.6839 
+Step2 pERM 900 loss = 472.3844 
+Step2 pERM 1000 loss = 450.9637 
+Step2 pERM 1100 loss = 430.3406 
+Step2 pERM 1200 loss = 410.4537 
+Step2 pERM 1300 loss = 391.2624 
+Step2 pERM 1400 loss = 372.741 
+Step2 pERM 1500 loss = 354.869 
+Step2 pERM 1600 loss = 337.6168 
+Step2 pERM 1700 loss = 320.9301 
+Step2 pERM 1800 loss = 305.2027 
+Step2 pERM 1900 loss = 290.6849 
+Step2 pERM 2000 loss = 276.6012 
+Step2 pERM 2100 loss = 262.9427 
+Step2 pERM 2200 loss = 249.6884 
+Step2 pERM 2300 loss = 236.8479 
+Step2 pERM 2400 loss = 224.4051 
+Step2 pERM 2500 loss = 212.3596 
+Step2 pERM 2600 loss = 200.7069 
+Step2 pERM 2700 loss = 189.4504 
+Step2 pERM 2800 loss = 178.583 
+Step2 pERM 2900 loss = 168.106 
+Step2 pERM 3000 loss = 158.0201 
+Step2 pERM 3100 loss = 148.3286 
+Step2 pERM 3200 loss = 139.0186 
+Step2 pERM 3300 loss = 130.0956 
+Step2 pERM 3400 loss = 121.5573 
+Step2 pERM 3500 loss = 113.3985 
+Step2 pERM 3600 loss = 105.6075 
+Step2 pERM 3700 loss = 98.17891 
+Step2 pERM 3800 loss = 91.097 
+Step2 pERM 3900 loss = 84.33883 
+Step2 pERM 4000 loss = 77.89197 
+Step2 pERM 4100 loss = 71.73306 
+Step2 pERM 4200 loss = 65.83847 
+Step2 pERM 4300 loss = 60.19336 
+Step2 pERM 4400 loss = 54.77949 
+Step2 pERM 4500 loss = 49.59126 
+Step2 pERM 4600 loss = 45.61055 
+Step2 pERM 4700 loss = 42.2191 
+Step2 pERM 4800 loss = 38.98077 
+Step2 pERM 4900 loss = 35.89528 
+Step2 pERM 5000 loss = 32.94819 
+Step 2 completed.
+Step1 pERM 100 loss = 0.5800287 
+Step1 pERM 200 loss = 0.553775 
+Step1 pERM 300 loss = 0.5411965 
+Step1 pERM 400 loss = 0.5325342 
+Step1 pERM 500 loss = 0.5221006 
+Step1 pERM 600 loss = 0.518002 
+Step1 pERM 700 loss = 0.5084247 
+Step1 pERM 800 loss = 0.5053164 
+Step1 pERM 900 loss = 0.5015437 
+Step1 pERM 1000 loss = 0.5011194 
+Step1 pERM 1100 loss = 0.4976261 
+Step1 pERM 1200 loss = 0.4940921 
+Step1 pERM 1300 loss = 0.493922 
+Step1 pERM 1400 loss = 0.4896021 
+Step1 pERM 1500 loss = 0.4897079 
+Step1 pERM 1600 loss = 0.4876693 
+Step1 pERM 1700 loss = 0.4865458 
+Step1 pERM 1800 loss = 0.4860072 
+Step1 pERM 1900 loss = 0.4862021 
+Step1 pERM 2000 loss = 0.4837117 
+Step1 pERM 2100 loss = 0.4827681 
+Step1 pERM 2200 loss = 0.4832497 
+Step1 pERM 2300 loss = 0.4794703 
+Step1 pERM 2400 loss = 0.4798487 
+Step1 pERM 2500 loss = 0.4797033 
+Step1 pERM 2600 loss = 0.482396 
+Step1 pERM 2700 loss = 0.4782372 
+Step1 pERM 2800 loss = 0.4793145 
+Step1 pERM 2900 loss = 0.4782663 
+Step1 pERM 3000 loss = 0.4783826 
+Step1 pERM 3100 loss = 0.4770987 
+Step1 pERM 3200 loss = 0.4742416 
+Step1 pERM 3300 loss = 0.4746441 
+Step1 pERM 3400 loss = 0.4759932 
+Step1 pERM 3500 loss = 0.4737758 
+Step1 pERM 3600 loss = 0.4725734 
+Step1 pERM 3700 loss = 0.4722027 
+Step1 pERM 3800 loss = 0.470653 
+Step1 pERM 3900 loss = 0.4716342 
+Step1 pERM 4000 loss = 0.4704366 
+Step1 pERM 4100 loss = 0.4704457 
+Step1 pERM 4200 loss = 0.471258 
+Step1 pERM 4300 loss = 0.4696321 
+Step1 pERM 4400 loss = 0.4690141 
+Step1 pERM 4500 loss = 0.4683345 
+Step1 pERM 4600 loss = 0.4680418 
+Step1 pERM 4700 loss = 0.4685747 
+Step1 pERM 4800 loss = 0.4674498 
+Step1 pERM 4900 loss = 0.4685345 
+Step1 pERM 5000 loss = 0.465838 
+Step 1 completed.
+Step2 pERM 100 loss = 280.6941 
+Step2 pERM 200 loss = 253.0797 
+Step2 pERM 300 loss = 227.7267 
+Step2 pERM 400 loss = 204.3756 
+Step2 pERM 500 loss = 182.8232 
+Step2 pERM 600 loss = 162.9241 
+Step2 pERM 700 loss = 144.5791 
+Step2 pERM 800 loss = 127.7166 
+Step2 pERM 900 loss = 112.2753 
+Step2 pERM 1000 loss = 98.18679 
+Step2 pERM 1100 loss = 85.36486 
+Step2 pERM 1200 loss = 73.70622 
+Step2 pERM 1300 loss = 63.09303 
+Step2 pERM 1400 loss = 53.38882 
+Step2 pERM 1500 loss = 44.65169 
+Step2 pERM 1600 loss = 37.69327 
+Step2 pERM 1700 loss = 31.31675 
+Step2 pERM 1800 loss = 25.46595 
+Step2 pERM 1900 loss = 20.12476 
+Step2 pERM 2000 loss = 15.29334 
+Step2 pERM 2100 loss = 11.81384 
+Step2 pERM 2200 loss = 9.670844 
+Step2 pERM 2300 loss = 8.015506 
+Step2 pERM 2400 loss = 6.492509 
+Step2 pERM 2500 loss = 5.088077 
+Step2 pERM 2600 loss = 3.794821 
+Step2 pERM 2700 loss = 2.595609 
+Step2 pERM 2800 loss = 1.819765 
+Step2 pERM 2900 loss = 1.807742 
+Step2 pERM 3000 loss = 1.8066 
+Step2 pERM 3100 loss = 1.803976 
+Step2 pERM 3200 loss = 1.805204 
+Step2 pERM 3300 loss = 1.803194 
+Step2 pERM 3400 loss = 1.802953 
+Step2 pERM 3500 loss = 1.802967 
+Step2 pERM 3600 loss = 1.808727 
+Step2 pERM 3700 loss = 1.802224 
+Step2 pERM 3800 loss = 1.798443 
+Step2 pERM 3900 loss = 1.802753 
+Step2 pERM 4000 loss = 1.80387 
+Step2 pERM 4100 loss = 1.803653 
+Step2 pERM 4200 loss = 1.802952 
+Step2 pERM 4300 loss = 1.807051 
+Step2 pERM 4400 loss = 1.800793 
+Step2 pERM 4500 loss = 1.799903 
+Step2 pERM 4600 loss = 1.806659 
+Step2 pERM 4700 loss = 1.805328 
+Step2 pERM 4800 loss = 1.803988 
+Step2 pERM 4900 loss = 1.805287 
+Step2 pERM 5000 loss = 1.801057 
+Step 2 completed.
+Step1 pERM 100 loss = 2011.741 
+Step1 pERM 200 loss = 1951.659 
+Step1 pERM 300 loss = 1922.441 
+Step1 pERM 400 loss = 1912.699 
+Step1 pERM 500 loss = 1907.967 
+Step1 pERM 600 loss = 1905.351 
+Step1 pERM 700 loss = 1903.973 
+Step1 pERM 800 loss = 1903.245 
+Step1 pERM 900 loss = 1902.86 
+Step1 pERM 1000 loss = 1902.667 
+Step1 pERM 1100 loss = 1902.58 
+Step1 pERM 1200 loss = 1902.543 
+Step1 pERM 1300 loss = 1902.529 
+Step1 pERM 1400 loss = 1902.524 
+Step1 pERM 1500 loss = 1902.522 
+Step1 pERM 1600 loss = 1902.522 
+Step1 pERM 1700 loss = 1902.521 
+Step1 pERM 1800 loss = 1902.521 
+Step1 pERM 1900 loss = 1902.52 
+Step1 pERM 2000 loss = 1902.519 
+Step1 pERM 2100 loss = 1902.519 
+Step1 pERM 2200 loss = 1902.519 
+Step1 pERM 2300 loss = 1902.517 
+Step1 pERM 2400 loss = 1902.514 
+Step1 pERM 2500 loss = 1902.51 
+Step1 pERM 2600 loss = 1902.505 
+Step1 pERM 2700 loss = 1902.495 
+Step1 pERM 2800 loss = 1902.484 
+Step1 pERM 2900 loss = 1902.471 
+Step1 pERM 3000 loss = 1902.458 
+Step1 pERM 3100 loss = 1902.411 
+Step1 pERM 3200 loss = 1902.366 
+Step1 pERM 3300 loss = 1902.356 
+Step1 pERM 3400 loss = 1902.349 
+Step1 pERM 3500 loss = 1902.345 
+Step1 pERM 3600 loss = 1902.341 
+Step1 pERM 3700 loss = 1902.339 
+Step1 pERM 3800 loss = 1902.337 
+Step1 pERM 3900 loss = 1902.335 
+Step1 pERM 4000 loss = 1902.333 
+Step1 pERM 4100 loss = 1902.333 
+Step1 pERM 4200 loss = 1902.336 
+Step1 pERM 4300 loss = 1902.33 
+Step1 pERM 4400 loss = 1902.329 
+Step1 pERM 4500 loss = 1902.329 
+Step1 pERM 4600 loss = 1902.329 
+Step1 pERM 4700 loss = 1902.326 
+Step1 pERM 4800 loss = 1902.326 
+Step1 pERM 4900 loss = 1902.325 
+Step1 pERM 5000 loss = 1902.325 
+Step 1 completed.
+Step2 pERM 100 loss = 9360.367 
+Step2 pERM 200 loss = 9316.726 
+Step2 pERM 300 loss = 9276.255 
+Step2 pERM 400 loss = 9238.579 
+Step2 pERM 500 loss = 9203.463 
+Step2 pERM 600 loss = 9170.707 
+Step2 pERM 700 loss = 9140.129 
+Step2 pERM 800 loss = 9111.56 
+Step2 pERM 900 loss = 9084.836 
+Step2 pERM 1000 loss = 9059.805 
+Step2 pERM 1100 loss = 9036.323 
+Step2 pERM 1200 loss = 9014.259 
+Step2 pERM 1300 loss = 8993.49 
+Step2 pERM 1400 loss = 8973.906 
+Step2 pERM 1500 loss = 8955.412 
+Step2 pERM 1600 loss = 8937.917 
+Step2 pERM 1700 loss = 8921.347 
+Step2 pERM 1800 loss = 8905.634 
+Step2 pERM 1900 loss = 8890.717 
+Step2 pERM 2000 loss = 8876.546 
+Step2 pERM 2100 loss = 8863.073 
+Step2 pERM 2200 loss = 8850.262 
+Step2 pERM 2300 loss = 8838.387 
+Step2 pERM 2400 loss = 8827.443 
+Step2 pERM 2500 loss = 8817.037 
+Step2 pERM 2600 loss = 8807.139 
+Step2 pERM 2700 loss = 8797.717 
+Step2 pERM 2800 loss = 8788.741 
+Step2 pERM 2900 loss = 8780.183 
+Step2 pERM 3000 loss = 8772.015 
+Step2 pERM 3100 loss = 8764.212 
+Step2 pERM 3200 loss = 8756.748 
+Step2 pERM 3300 loss = 8749.601 
+Step2 pERM 3400 loss = 8742.745 
+Step2 pERM 3500 loss = 8736.162 
+Step2 pERM 3600 loss = 8729.83 
+Step2 pERM 3700 loss = 8723.731 
+Step2 pERM 3800 loss = 8717.85 
+Step2 pERM 3900 loss = 8712.183 
+Step2 pERM 4000 loss = 8706.777 
+Step2 pERM 4100 loss = 8702.093 
+Step2 pERM 4200 loss = 8697.612 
+Step2 pERM 4300 loss = 8693.301 
+Step2 pERM 4400 loss = 8689.412 
+Step2 pERM 4500 loss = 8686.017 
+Step2 pERM 4600 loss = 8682.724 
+Step2 pERM 4700 loss = 8679.52 
+Step2 pERM 4800 loss = 8676.399 
+Step2 pERM 4900 loss = 8673.36 
+Step2 pERM 5000 loss = 8670.396 
+Step 2 completed.
+Step1 pERM 100 loss = 142.293 
+Step1 pERM 200 loss = 136.9351 
+Step1 pERM 300 loss = 134.8802 
+Step1 pERM 400 loss = 134.3483 
+Step1 pERM 500 loss = 134.2305 
+Step1 pERM 600 loss = 134.2113 
+Step1 pERM 700 loss = 134.2059 
+Step1 pERM 800 loss = 134.2039 
+Step1 pERM 900 loss = 134.2043 
+Step1 pERM 1000 loss = 134.2043 
+Step1 pERM 1100 loss = 134.2044 
+Step1 pERM 1200 loss = 134.2026 
+Step1 pERM 1300 loss = 134.204 
+Step1 pERM 1400 loss = 134.2036 
+Step1 pERM 1500 loss = 134.2036 
+Step1 pERM 1600 loss = 134.2038 
+Step1 pERM 1700 loss = 134.2027 
+Step1 pERM 1800 loss = 134.2033 
+Step1 pERM 1900 loss = 134.2031 
+Step1 pERM 2000 loss = 134.2018 
+Step1 pERM 2100 loss = 134.203 
+Step1 pERM 2200 loss = 134.204 
+Step1 pERM 2300 loss = 134.2021 
+Step1 pERM 2400 loss = 134.2029 
+Step1 pERM 2500 loss = 134.2017 
+Step1 pERM 2600 loss = 134.2035 
+Step1 pERM 2700 loss = 134.2025 
+Step1 pERM 2800 loss = 134.2021 
+Step1 pERM 2900 loss = 134.2015 
+Step1 pERM 3000 loss = 134.2035 
+Step1 pERM 3100 loss = 134.2024 
+Step1 pERM 3200 loss = 134.202 
+Step1 pERM 3300 loss = 134.2035 
+Step1 pERM 3400 loss = 134.2025 
+Step1 pERM 3500 loss = 134.2024 
+Step1 pERM 3600 loss = 134.2015 
+Step1 pERM 3700 loss = 134.2039 
+Step1 pERM 3800 loss = 134.2017 
+Step1 pERM 3900 loss = 134.2026 
+Step1 pERM 4000 loss = 134.2025 
+Step1 pERM 4100 loss = 134.2026 
+Step1 pERM 4200 loss = 134.2025 
+Step1 pERM 4300 loss = 134.2033 
+Step1 pERM 4400 loss = 134.2024 
+Step1 pERM 4500 loss = 134.2018 
+Step1 pERM 4600 loss = 134.2023 
+Step1 pERM 4700 loss = 134.2019 
+Step1 pERM 4800 loss = 134.2018 
+Step1 pERM 4900 loss = 134.202 
+Step1 pERM 5000 loss = 134.2017 
+Step 1 completed.
+Step2 pERM 100 loss = 527.8241 
+Step2 pERM 200 loss = 520.6939 
+Step2 pERM 300 loss = 515.2594 
+Step2 pERM 400 loss = 510.8098 
+Step2 pERM 500 loss = 507.1256 
+Step2 pERM 600 loss = 504.0226 
+Step2 pERM 700 loss = 501.3527 
+Step2 pERM 800 loss = 499.0048 
+Step2 pERM 900 loss = 496.9016 
+Step2 pERM 1000 loss = 494.9887 
+Step2 pERM 1100 loss = 493.2345 
+Step2 pERM 1200 loss = 491.6165 
+Step2 pERM 1300 loss = 490.1187 
+Step2 pERM 1400 loss = 488.7314 
+Step2 pERM 1500 loss = 487.4459 
+Step2 pERM 1600 loss = 486.256 
+Step2 pERM 1700 loss = 485.1569 
+Step2 pERM 1800 loss = 484.1417 
+Step2 pERM 1900 loss = 483.2075 
+Step2 pERM 2000 loss = 482.3495 
+Step2 pERM 2100 loss = 481.5651 
+Step2 pERM 2200 loss = 480.8486 
+Step2 pERM 2300 loss = 480.1961 
+Step2 pERM 2400 loss = 479.6044 
+Step2 pERM 2500 loss = 479.0678 
+Step2 pERM 2600 loss = 478.5836 
+Step2 pERM 2700 loss = 478.1454 
+Step2 pERM 2800 loss = 477.7507 
+Step2 pERM 2900 loss = 477.3928 
+Step2 pERM 3000 loss = 477.0695 
+Step2 pERM 3100 loss = 476.7823 
+Step2 pERM 3200 loss = 476.5808 
+Step2 pERM 3300 loss = 476.579 
+Step2 pERM 3400 loss = 476.5794 
+Step2 pERM 3500 loss = 476.5789 
+Step2 pERM 3600 loss = 476.5795 
+Step2 pERM 3700 loss = 476.5803 
+Step2 pERM 3800 loss = 476.5793 
+Step2 pERM 3900 loss = 476.5789 
+Step2 pERM 4000 loss = 476.5799 
+Step2 pERM 4100 loss = 476.5799 
+Step2 pERM 4200 loss = 476.5783 
+Step2 pERM 4300 loss = 476.5785 
+Step2 pERM 4400 loss = 476.5787 
+Step2 pERM 4500 loss = 476.5789 
+Step2 pERM 4600 loss = 476.5797 
+Step2 pERM 4700 loss = 476.5791 
+Step2 pERM 4800 loss = 476.5788 
+Step2 pERM 4900 loss = 476.5791 
+Step2 pERM 5000 loss = 476.5799 
+Step 2 completed.
+Error in X_use %*% beta : non-conformable arguments
+Calls: eval_function -> CATE_predict
+Execution halted
+Fri Mar  6 05:36:18 PM EST 2026
