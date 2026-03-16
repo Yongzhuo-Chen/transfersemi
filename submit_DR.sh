@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=submit  # Job name
-#SBATCH --account=sai.zhang
-#SBATCH --qos=sai.zhang
+#SBATCH --account=<HPC_ACCOUNT>
+#SBATCH --qos=<HPC_QOS>
 #SBATCH --mail-type=ALL   # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --ntasks=1   # Number of tasks
 #SBATCH --cpus-per-task=1

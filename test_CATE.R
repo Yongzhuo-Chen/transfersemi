@@ -5,15 +5,15 @@ lapply(files, source)
 library(glmnet)
 
 simulation <- function(n=n, similarity=similarity, seed=seed, dim=dim){
-result_dir = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/CATE_dim", dim, "/CATE_", n, "_", similarity)
+result_dir = paste0("/CATE_dim", dim, "/CATE_", n, "_", similarity)
 if (!dir.exists(result_dir)) {
   dir.create(result_dir, recursive = TRUE)
 }
-result_dir_pro = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/CATE_pro_dim", dim, "/CATE_", n, "_", similarity)
+result_dir_pro = paste0("CATE_pro_dim", dim, "/CATE_", n, "_", similarity)
 if (!dir.exists(result_dir_pro)) {
   dir.create(result_dir_pro, recursive = TRUE)
 }
-result_dir_mu = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/CATE_mu_dim", dim, "/CATE_", n, "_", similarity)
+result_dir_mu = paste0("CATE_mu_dim", dim, "/CATE_", n, "_", similarity)
 if (!dir.exists(result_dir_mu)) {
   dir.create(result_dir_mu, recursive = TRUE)
 }
@@ -217,7 +217,7 @@ ARMUL_transfer = t(ARMUL_transfer)
 ##############################################################################################################################
 ##############################################################################################################################
 result_dir <- paste0(
-  "/orange/muxuan.liang/yongzhuo/TransferSemi_5/CATE_test",
+  "CATE_repro_test",
   dim, "/CATE_", n, "_", similarity
 )
 
@@ -358,11 +358,6 @@ pERM_transfer=t(pERM_transfer)
 ##############################################################################################################################
 print("finished fitting pERM")
 
-# Construct result directory
-result_dir <- paste0(
-  "/orange/muxuan.liang/yongzhuo/TransferSemi_5/CATE_test",
-  dim, "/CATE_", n, "_", similarity
-)
 
 # Ensure directory exists
 if (!dir.exists(result_dir)) {
@@ -769,14 +764,12 @@ res <- rbind("Para_Transfer"=c(mse_par_transfer),"Para_Transfer_Tuned"=c(mse_par
               "ARMUL_transfer"=mse_ARMUL_transfer, "pERM_transfer"=mse_pERM_transfer, "Pooled"=mse_pooled)
 colnames(res) <- c("Task1", "Task2", "Task3", "Task4", "Task5")
 
-  
-  save(result = res,
-    file = paste0(
-      result_dir,
-      "/",
-      seed,
-      ".RData"
-    ))
+print(res)
+
+result <- res
+save(result,
+     file = file.path(result_dir, paste0(seed, ".RData")))
+
 
 }
 args <- commandArgs(trailingOnly = TRUE)
@@ -785,6 +778,5 @@ similarity <- as.numeric(args[2]) # Second argument passed
 seed <- as.numeric(args[3])
 dim <- as.numeric(args[4])
 cat(seed, n, similarity)
-options(error = quote(traceback(3)))
 
 simulation(n, similarity, seed, dim)

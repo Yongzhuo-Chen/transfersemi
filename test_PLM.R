@@ -11,19 +11,18 @@ n <- n # vary this from 200 to 500
 p <- dim
 similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
 set.seed(seed)
-df_fixed = 2
 
-dictionary_mse = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_before_dim", dim,"/mse_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_mse = paste0("results_before_dim", dim,"/mse_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_mse)) {
   dir.create(dictionary_mse, recursive = TRUE)
 }
 filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-dictionary_estimate = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_before_dim", dim, "/est_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_estimate = paste0("results_before_dim", dim, "/est_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_estimate)) {
   dir.create(dictionary_estimate, recursive = TRUE)
 }
 filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
-dictionary_time = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_before_dim", dim, "/_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_time = paste0("results_before_dim", dim, "/_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_time)) {
   dir.create(dictionary_time, recursive = TRUE)
 }
@@ -118,29 +117,25 @@ suppressPackageStartupMessages({
   library(gglasso)
 })
 
-# ----------------------------
-# 1) Your simulation block (kept)
-# ----------------------------
+
 # assumes you already defined: seed, ntask, n, p
 # and set similarity=1 as in your snippet
 set.seed(seed)
 
 
-# NOTE: your later code uses ONE shared split across tasks ("index_select"), not split_index[[task]]
 number_split <- 2
 sample_size  <- length(Y[[1]])
 index_select <- sample(1:number_split, sample_size, replace = TRUE)
 
 # ----------------------------
-# 2) (Optional) Freeze spline basis exactly like your vanilla_train
+# 2) (Optional) Freeze spline basis
 # ----------------------------
 library(splines)
 library(gglasso)
 
 # ----------------------------
-# Frozen spline basis (same as before)
 # ----------------------------
-freeze_spline_funs <- function(X_list, df = 2, boundary_expand = 0.40, clamp = FALSE) {
+freeze_spline_funs <- function(X_list, df = 10, boundary_expand = 0.40, clamp = FALSE) {
   d <- ncol(X_list[[1]])
   spline_funs <- vector("list", d)
   
@@ -156,7 +151,7 @@ freeze_spline_funs <- function(X_list, df = 2, boundary_expand = 0.40, clamp = F
     bmax <- xmax + boundary_expand * rng
     
     B_pool <- splines::bs(
-      pooled_x, df = df, degree = 3, intercept = FALSE,
+      pooled_x, df = df, degree = 3, intercept = TRUE,
       Boundary.knots = c(bmin, bmax)
     )
     
@@ -240,7 +235,7 @@ build_mt_design <- function(Xs_list) {
 # Fit multi-task model with CV-selected lambda from cv.gglasso
 # ----------------------------
 mt_fit_cv <- function(X_list, y_list,
-                      spline = TRUE, df = 2,
+                      spline = TRUE, df = 10,
                       boundary_expand = 0.40,
                       clamp = FALSE,
                       seed = 1,
@@ -275,7 +270,7 @@ mt_fit_cv <- function(X_list, y_list,
     x = Xbig, y = ybig,
     group = group,
     loss = "ls",
-    pf = pf_group,          # <-- PER GROUP (fixed)
+    pf = pf_group,     
     intercept = F,
     nfolds = nfolds
   )
@@ -351,7 +346,7 @@ for (index in 1:ntask) {
     model_D <- mt_fit_cv(
       X_list = X_train,
       y_list = D_train,
-      spline = TRUE, df = 2,
+      spline = TRUE, df = 10,
       seed = seed,
       nfolds = 5
     )
@@ -361,7 +356,7 @@ for (index in 1:ntask) {
     model_Y <- mt_fit_cv(
       X_list = X_train,
       y_list = Y_train,
-      spline = TRUE, df = 2,
+      spline = TRUE, df = 10,
       seed = seed,
       nfolds = 5
     )
@@ -429,7 +424,7 @@ tune_lambda_vanilla <- function(X_list, y_list,
                                 c_grid = seq(0.05, 1, by=0.05),
                                 val_frac = 0.2,
                                 seed = 1,
-                                T_global = 500, T_local = 1,
+                                T_global = 5000, T_local = 1,
                                 eta_global = 0.01, eta_local = 0.01,
                                 penalty = "new",
                                 target_task = NULL) {
@@ -503,6 +498,7 @@ for (index in 1:ntask) {
 
   for (split_index in 1:number_split) {
 
+    # ---- outer split: TRAIN/TEST indices (shared across tasks) ----
     idx_tr  <- which(index_select == split_index)
     idx_te  <- which(index_select != split_index)
 
@@ -515,32 +511,31 @@ for (index in 1:ntask) {
     # --------------------------
     # Tune lambda for D ~ X (stage 1)
     # --------------------------
-    df_fixed = 2
     tune_D <- tune_lambda_vanilla(
       X_list = X_train,
       y_list = D_train,
       link   = "linear",
-      spline = TRUE, df = df_fixed,
+      spline = TRUE, df = 10,
       c_grid = c_grid_stage1,
       val_frac = 0.2,
       seed = seed,
-      T_global = 500,
+      T_global = 5000,
       penalty = "new",
       target_task = index
     )
 
     # refit D|X on full outer TRAIN using tuned lambda
     d_eff1 <- ncol(X_train[[1]])
-    p_eff1 <- d_eff1 * df_fixed  # spline TRUE df=10 => p_eff = d*df
+    p_eff1 <- d_eff1 * 10  # spline TRUE df=10 => p_eff = d*df
     n_list1 <- sapply(D_train, length)
     lbd_D <- tune_D$c_best * sqrt(p_eff1 / n_list1)
 
     model_D <- vanilla_train(
       X_train, D_train,
       link = "linear",
-      spline = TRUE, df = 2,
+      spline = TRUE, df = 10,
       lbd = lbd_D,
-      T_global = 200
+      T_global = 1000
     )
 
     D_given_X[idx_te] <- as.numeric(vanilla_predict(model_D, X_test, task_id = index, link="linear"))
@@ -552,11 +547,11 @@ for (index in 1:ntask) {
       X_list = X_train,
       y_list = Y_train,
       link   = "linear",
-      spline = TRUE, df = 2,
+      spline = TRUE, df = 10,
       c_grid = c_grid_stage1,
       val_frac = 0.2,
       seed = seed,
-      T_global = 500,
+      T_global = 5000,
       penalty = "new",
       target_task = index
     )
@@ -567,9 +562,9 @@ for (index in 1:ntask) {
     model_Y <- vanilla_train(
       X_train, Y_train,
       link = "linear",
-      spline = TRUE, df = 2,
+      spline = TRUE, df = 10,
       lbd = lbd_Y,
-      T_global = 500
+      T_global = 5000
     )
 
     Y_given_X[idx_te] <- as.numeric(vanilla_predict(model_Y, X_test, task_id = index, link="linear"))
@@ -606,11 +601,10 @@ for (index in 1:ntask) {
       c_grid = c_grid_stage2,
       val_frac = 0.2,
       seed = seed,
-      T_global = 500,
-      target_task = index   # tune for the task you care about
+      T_global = 5000,
+      target_task = index   # tune for the task
     )
 
-    # refit on full outer TRAIN with tuned lambda
     m <- length(D_res_train)
     n_list <- sapply(Y_res_train, length)
     p_eff <- 1
@@ -620,7 +614,7 @@ for (index in 1:ntask) {
       D_res_train, Y_res_train,
       link = "linear",
       lbd = lbd_best,
-      T_global = 500,
+      T_global = 5000,
       spline = TRUE
     )
 
@@ -637,10 +631,7 @@ for (index in 1:ntask) {
 
 ####################################################################################################
 # pERM: tune (C1,C2) in ALL steps (D~X stage1, Y~X stage1, final residual stage2)
-# IMPORTANT: does NOT change input/return data types/classes of your existing functions.
 # - tune_C1C2_pERM_stage1(): same signature + same return type (list(loss, C1, C2))
-# - NEW tune_C1C2_pERM_stage2(): same return type (list(loss, C1, C2))
-# - Uses your existing pERM_torch(), compute_val_loss(), etc. as-is.
 ####################################################################################################
 
 # ----------------------------
@@ -648,13 +639,13 @@ for (index in 1:ntask) {
 # ----------------------------
 tune_C1C2_pERM_stage1 <- function(X_list, y_list,
                                  r = 20, nbasis = 5,
-                                 C1_grid = 10^seq(-2, 2, length.out = 10),
-                                 C2_grid = 10^seq(-2, 2, length.out = 10),
+                                 C1_grid = 10^seq(-3, 2, length.out = 10),
+                                 C2_grid = 10^seq(-3, 2, length.out = 10),
                                  link = "linear",
                                  val_frac = 0.2,
                                  seed = 1,
                                  target_task = NULL,
-                                 lr = 1e-2, max_iter = 200, tol = 1e-3,
+                                 lr = 1e-5, max_iter = 1000, tol = 1e-3,
                                  info = FALSE) {
   set.seed(seed)
   ntask <- length(X_list)
@@ -710,7 +701,7 @@ tune_C1C2_pERM_stage2 <- function(X_list, y_list,
                                  val_frac = 0.2,
                                  seed = 1,
                                  target_task = NULL,
-                                 lr = 1e-4, max_iter = 200, tol = 1e-3,
+                                 lr = 1e-4, max_iter = 1000, tol = 1e-3,
                                  info = FALSE) {
   set.seed(seed)
   ntask <- length(X_list)
@@ -766,11 +757,11 @@ peRMdata <- list()
 
 sample_size <- length(Y[[1]])
 
-# fixed settings (you can change, but types stay the same)
+# fixed settings
 r_fixed <- 3
-nbasis_fixed <- 5
-C1_grid <- 10^seq(-2, 2, length.out = 10)
-C2_grid <- 10^seq(-2, 2, length.out = 10)
+nbasis_fixed <- 1
+C1_grid <- 10^seq(-4, 2, length.out = 10)
+C2_grid <- 10^seq(-4, 2, length.out = 10)
 
 # final stage2 grids (often different scale)
 C1_grid_stage2 <- 10^seq(-4, 1, length.out = 10)
@@ -781,8 +772,6 @@ n <- length(Y[[1]])
 D_given_Xs <- replicate(ntask, rep(0, n), simplify = FALSE)
 Y_given_Xs <- replicate(ntask, rep(0, n), simplify = FALSE)
 
-# NOTE: index_select and number_split are assumed to already exist in your script
-# index_select <- sample(1:number_split, sample_size, replace = TRUE)
 
 for (split_index in 1:number_split) {
 
@@ -833,7 +822,7 @@ for (split_index in 1:number_split) {
     r = r_fixed, nbasis = nbasis_fixed,
     C1_grid = C1_grid, C2_grid = C2_grid,
     link = "linear",
-    seed = 2000 + split_index,
+    seed = seed,
     info = FALSE
   )
 
@@ -853,17 +842,15 @@ for (split_index in 1:number_split) {
 }
 
 # ----------------------------
-# residuals (same type as your code: list of 1-col matrices)
 # ----------------------------
 pERM_D_res <- lapply(seq_len(ntask), function(t) matrix(as.numeric(D[[t]] - D_given_Xs[[t]]), ncol=1))
 pERM_Y_res <- lapply(seq_len(ntask), function(t) matrix(as.numeric(Y[[t]] - Y_given_Xs[[t]]), ncol=1))
 
 # ----------------------------
 # FINAL Stage-2: residual(Y) ~ residual(D)  (tune C1,C2 in EACH outer split)
-# keep your coef vector + pERM_transfer[[index]] <- mean(coef)
 # ----------------------------
 coef <- rep(0, times = number_split)
-
+coef_mat <- matrix(0, nrow = number_split, ncol = ntask)
 for (split_index in 1:number_split) {
 
   tr <- which(index_select == split_index)
@@ -881,7 +868,7 @@ for (split_index in 1:number_split) {
     r = 1, nbasis = 1,
     C1_grid = C1_grid_stage2, C2_grid = C2_grid_stage2,
     link = "linear",
-    seed = 3000 + split_index,
+    seed = seed,
     info = FALSE
   )
 
@@ -902,11 +889,12 @@ for (split_index in 1:number_split) {
 
   # keep your exact update logic + types
   for (index in 1:ntask) {
-    coef[split_index] <- model$step2[1, index]
-    pERM_transfer[[index]] <- mean(coef)
+    coef_mat[split_index, index] <- model$step2[1, index]
   }
 }
-
+for (index in 1:ntask) {
+  pERM_transfer[[index]] <- mean(coef_mat[, index])
+}
 # Data Pooling method
 ##############################################################################################################################
 ##############################################################################################################################

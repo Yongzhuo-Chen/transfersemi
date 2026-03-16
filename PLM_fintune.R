@@ -12,12 +12,12 @@ run_simulation <- function(seed, n, similarity, dim){
   similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
   set.seed(seed)
   
-  dictionary_mse = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_finetune_new", dim,"/mse_n_",n,"_simi_",similarity)
+  dictionary_mse = paste0("results_finetune_new", dim,"/mse_n_",n,"_simi_",similarity)
   if (!file.exists(dictionary_mse)) {
     dir.create(dictionary_mse, recursive = TRUE)
   }
   filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-  dictionary_estimate = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_finetune_new", dim, "/est_n_",n,"_simi_",similarity)
+  dictionary_estimate = paste0("results_finetune_new", dim, "/est_n_",n,"_simi_",similarity)
   if (!file.exists(dictionary_estimate)) {
     dir.create(dictionary_estimate, recursive = TRUE)
   }
@@ -452,7 +452,7 @@ cat("=====================================\n")
 
 # ---- Save timing info ----
 dictionary_mse <- paste0(
-  "/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_finetune_new_time",
+  "results_finetune_new_time",
   dim, "/mse_n_", n, "_simi_", similarity
 )
 

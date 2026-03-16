@@ -1,5 +1,5 @@
 build_spline_funs_from_tasks <- function(data, df, degree = 3, intercept = TRUE,
-                                         boundary_expand = 0.45,   # 5% range padding
+                                         boundary_expand = 0.01,   # 5% range padding
                                          clamp = FALSE) {         # optional: clip x into boundaries
   stopifnot(length(data) >= 1)
   p <- ncol(data[[1]]$X)
@@ -57,8 +57,8 @@ expand_tasks_with_spline <- function(data, spline_funs) {
   })
 }
 
-pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 5000,
-                       C1 = 1, C2 = 1, info = FALSE, tol = 1e-3,
+pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
+                       C1 = 0.001, C2 = 0.001, info = FALSE, tol = 1e-3,
                        link = c("linear","logistic"), X_test=NULL, X_test_list=NULL) {
   
   link <- match.arg(link)
@@ -174,7 +174,7 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 5000,
       Pt   <- proj_mat(At)
       Pbar <- proj_mat(A_bar)
       if (ncol(Pt)==1){
-        pen  <- lam  / sqrt(n_tot) * spectral_norm(Pt - Pbar)
+        pen  <- lam  / sqrt(n_tot) * spectral_norm(Pt - Pbar) * 0
       }else{
         pen  <- lam  / sqrt(n_tot) * spectral_norm(Pt - Pbar)
       }
@@ -195,7 +195,10 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 5000,
     opt1$step()
     li <- as.numeric(l$item())
     if (info && i %% 100 == 0) cat("Step1 pERM", i, "loss =", li, "\n")
-    
+    if (abs(loss_prev - li) / max(1e-12, li) <= tol) {
+      if (info) cat("Step 1 converged.\n")
+      break
+    }
 
     loss_prev <- li
   }
@@ -210,7 +213,12 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 5000,
   
   # Step 2
   gamma <- sqrt(p*nbasis + log(Ttasks)) * C2
-  beta <- torch::torch_zeros(c(p*nbasis, Ttasks), requires_grad = TRUE, dtype = torch::torch_float64())
+  beta <- torch::torch_full(
+    c(p * nbasis, Ttasks),
+    fill_value = 2,
+    requires_grad = TRUE,
+    dtype = torch::torch_float64()
+  )
   
   loss_step2 <- function(beta) {
     s <- torch::torch_tensor(0, dtype = torch::torch_float64())
@@ -248,7 +256,10 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 5000,
     li <- as.numeric(l2$item())
     
     if (info && i %% 100 == 0) cat("Step2 pERM", i, "loss =", li, "\n")
-
+    if (abs(loss_prev - li) / max(1e-12, li) <= tol) {
+      if (info) cat("Step 1 converged.\n")
+      break
+    }
     loss_prev <- li
   }
   

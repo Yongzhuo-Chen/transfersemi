@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=CATE  # Job name
-#SBATCH --account=sai.zhang
-#SBATCH --qos=sai.zhang-b
+#SBATCH --account=<HPC_ACCOUNT>
+#SBATCH --qos=<HPC_QOS>
 #SBATCH --mail-type=ALL   # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --ntasks=1   # Number of tasks
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=5gb   # Memory per CPU
+#SBATCH --mem=8gb   # Memory per CPU
 #SBATCH --output=logs_CATE/%x_%j.log
 #SBATCH --error=logs_CATE/%x_%j.log
 #SBATCH --time=4-00:00:00   # Time limit hh:mm:ss

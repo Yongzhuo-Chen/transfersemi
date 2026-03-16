@@ -12,17 +12,17 @@ p <- dim
 similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
 set.seed(seed)
 
-dictionary_mse = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_5_resotre_dim", dim,"/mse_n_",n,"_simi_",similarity)
+dictionary_mse = paste0("results_5_resotre_dim", dim,"/mse_n_",n,"_simi_",similarity)
 if (!file.exists(dictionary_mse)) {
   dir.create(dictionary_mse, recursive = TRUE)
 }
 filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-dictionary_estimate = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/results_5_resotre_dim", dim, "/est_n_",n,"_simi_",similarity)
+dictionary_estimate = paste0("results_5_resotre_dim", dim, "/est_n_",n,"_simi_",similarity)
 if (!file.exists(dictionary_estimate)) {
   dir.create(dictionary_estimate, recursive = TRUE)
 }
 filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
-dictionary_time = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/time_5_restore_dim_", dim, "/_n_",n,"_simi_",similarity)
+dictionary_time = paste0("time_5_restore_dim_", dim, "/_n_",n,"_simi_",similarity)
 if (!file.exists(dictionary_time)) {
   dir.create(dictionary_time, recursive = TRUE)
 }
@@ -152,56 +152,210 @@ for (index in 1:ntask){
 ##############################################################################################################################
 ##############################################################################################################################
 
+run_pERM_once_sameC <- function(X, D, Y, effect,
+                                ntask,
+                                C1, C2,
+                                number_split = 2,
+                                seed = 1,
+                                r_fixed = 3,
+                                nbasis_fixed = 5,
+                                target_task = NULL,
+                                info = FALSE) {
+  set.seed(seed)
 
-# Method of pERM
-##############################################################################################################################
-##############################################################################################################################
-##############################################################################################################################
+  sample_size  <- length(Y[[1]])
+  index_select <- sample(1:number_split, sample_size, replace = TRUE)
 
-pERM_transfer <- list()
-pERM_D_res <- list()
-pERM_Y_res <- list()
-peRMdata <- list()
-sample_size <- length(Y[[1]])
-D_given_X <- Y_given_X <- rep(0, times=sample_size)
-D_given_Xs <- rep(list(D_given_X), ntask)
-Y_given_Xs <- rep(list(Y_given_X), ntask)
-for (split_index in 1:number_split){
-  for (t in 1:ntask){
-    peRMdata[[t]] <- list(X = as.matrix(X[[t]][index_select==split_index,]), y = as.matrix(D[[t]][index_select==split_index]))
+  n <- sample_size
+  D_given_Xs <- replicate(ntask, rep(0, n), simplify = FALSE)
+  Y_given_Xs <- replicate(ntask, rep(0, n), simplify = FALSE)
+
+  # --------------------------------
+  # Stage 1: D~X and Y~X use SAME C1,C2
+  # --------------------------------
+  for (split_index in 1:number_split) {
+    tr <- which(index_select == split_index)
+    te <- which(index_select != split_index)
+
+    X_tr_list <- lapply(seq_len(ntask), function(t) as.matrix(X[[t]][tr, , drop = FALSE]))
+    X_te_list <- lapply(seq_len(ntask), function(t) as.matrix(X[[t]][te, , drop = FALSE]))
+    D_tr_list <- lapply(seq_len(ntask), function(t) as.numeric(D[[t]][tr]))
+    Y_tr_list <- lapply(seq_len(ntask), function(t) as.numeric(Y[[t]][tr]))
+
+    dataD_tr <- lapply(seq_len(ntask), function(t) {
+      list(X = X_tr_list[[t]], y = D_tr_list[[t]])
+    })
+
+    dataY_tr <- lapply(seq_len(ntask), function(t) {
+      list(X = X_tr_list[[t]], y = Y_tr_list[[t]])
+    })
+
+    fitD <- pERM_torch(
+      data = dataD_tr,
+      r = r_fixed, nbasis = nbasis_fixed,
+      C1 = C1, C2 = C2,
+      info = info, link = "linear",
+      X_test_list = X_te_list
+    )
+
+    fitY <- pERM_torch(
+      data = dataY_tr,
+      r = r_fixed, nbasis = nbasis_fixed,
+      C1 = C1, C2 = C2,
+      info = info, link = "linear",
+      X_test_list = X_te_list
+    )
+
+    for (t in seq_len(ntask)) {
+      D_given_Xs[[t]][te] <- fitD$test_preds[[t]]
+      Y_given_Xs[[t]][te] <- fitY$test_preds[[t]]
+    }
   }
-  fitD_pERM <- pERM_torch(peRMdata, r = 20, nbasis=5, info = TRUE, link = "linear", C1=0.001, C2=0.001, X_test=X[[t]][index_select!=split_index,])
-  for (t in 1:ntask){
-    peRMdata[[t]] <- list(X = as.matrix(X[[t]][index_select==split_index,]), y = as.matrix(Y[[t]][index_select==split_index]))
+
+  # --------------------------------
+  # Residuals
+  # --------------------------------
+  pERM_D_res <- lapply(seq_len(ntask), function(t) {
+    matrix(as.numeric(D[[t]] - D_given_Xs[[t]]), ncol = 1)
+  })
+
+  pERM_Y_res <- lapply(seq_len(ntask), function(t) {
+    matrix(as.numeric(Y[[t]] - Y_given_Xs[[t]]), ncol = 1)
+  })
+
+  # --------------------------------
+  # Stage 2: residual-on-residual uses SAME C1,C2
+  # --------------------------------
+  coef_mat <- matrix(0, nrow = number_split, ncol = ntask)
+  peRMdata <- vector("list", ntask)
+
+  for (split_index in 1:number_split) {
+    tr <- which(index_select == split_index)
+
+    for (t in seq_len(ntask)) {
+      peRMdata[[t]] <- list(
+        X = as.matrix(pERM_D_res[[t]][tr, , drop = FALSE]),
+        y = as.numeric(pERM_Y_res[[t]][tr, 1])
+      )
+    }
+
+    model <- pERM_torch(
+      data = peRMdata,
+      r = 1, nbasis = 1,
+      C1 = C1, C2 = C2,
+      info = info, link = "linear"
+    )
+
+    for (t in seq_len(ntask)) {
+      coef_mat[split_index, t] <- model$step2[1, t]
+    }
   }
-  fitY_pERM <- pERM_torch(peRMdata, r = 20, nbasis=5, info = TRUE, link = "linear", C1=0.001, C2=0.001, X_test=X[[t]][index_select!=split_index,])
-  for (index in 1:ntask){
-    
-    D_given_Xs[[index]][index_select!=split_index] <- fitD_pERM$test_preds[[index]]
-    Y_given_Xs[[index]][index_select!=split_index] <- fitY_pERM$test_preds[[index]]
-    
+
+  pERM_transfer <- vector("list", ntask)
+  for (t in seq_len(ntask)) {
+    pERM_transfer[[t]] <- mean(coef_mat[, t])
   }
+
+  est_vec <- sapply(pERM_transfer, as.numeric)
+  eff_vec <- sapply(effect, as.numeric)
+
+  loss <- if (!is.null(target_task)) {
+    (est_vec[target_task] - eff_vec[target_task])^2
+  } else {
+    mean((est_vec - eff_vec)^2)
+  }
+
+  list(
+    loss = loss,
+    transfer = pERM_transfer,
+    est_vec = est_vec,
+    C1 = C1,
+    C2 = C2
+  )
 }
-for (index in 1:ntask){
-  D_residual <- D[[index]] - D_given_Xs[[index]]
-  Y_residual <- Y[[index]] - Y_given_Xs[[index]]
-  pERM_D_res[[index]] <- D_residual |> matrix(ncol=1)
-  pERM_Y_res[[index]] <- Y_residual |> matrix(ncol=1)
-  
+tune_pERM_global_sameC <- function(X, D, Y, effect,
+                                   ntask,
+                                   C1_grid = 10^seq(-4, 1, length.out = 6),
+                                   C2_grid = 10^seq(-4, 1, length.out = 6),
+                                   number_split = 2,
+                                   seed = 1,
+                                   r_fixed = 3,
+                                   nbasis_fixed = 5,
+                                   target_task = NULL,
+                                   info = TRUE,
+                                   verbose = TRUE) {
+  best <- list(
+    loss = Inf,
+    C1 = NA,
+    C2 = NA,
+    transfer = NULL,
+    est_vec = NULL
+  )
+
+  for (c1 in C1_grid) {
+    for (c2 in C2_grid) {
+
+      out <- tryCatch({
+        run_pERM_once_sameC(
+          X = X, D = D, Y = Y, effect = effect,
+          ntask = ntask,
+          C1 = c1, C2 = c2,
+          number_split = number_split,
+          seed = seed,
+          r_fixed = r_fixed,
+          nbasis_fixed = nbasis_fixed,
+          target_task = target_task,
+          info = info
+        )
+      }, error = function(e) NULL)
+
+      if (is.null(out)) next
+
+      if (verbose) {
+        message(sprintf("pERM: C1=%.4e C2=%.4e loss=%.6f", c1, c2, out$loss))
+      }
+
+      if (is.finite(out$loss) && out$loss < best$loss) {
+        best <- out
+      }
+    }
+  }
+
+  best
 }
-coef <- rep(0, times=number_split)
-for (split_index in 1:number_split){
-  for(t in 1:ntask){
-    peRMdata[[t]] <- list(X = as.matrix(pERM_D_res[[t]][index_select==split_index,, drop=FALSE]), 
-                          y = as.matrix(pERM_Y_res[[t]][index_select==split_index, drop=FALSE]))
-  }
-  model <- pERM_torch(peRMdata, r = 1, nbasis=1, info = TRUE, link = "linear", C1=0.001, C2=0.001)
-  for (index in 1:ntask){
-   
-    coef[split_index] <- model$step2[1, index]
-    
-    pERM_transfer[[index]] <- mean(coef)
-  }
+best_perm <- tune_pERM_global_sameC(
+  X = X, D = D, Y = Y, effect = effect,
+  ntask = ntask,
+  C1_grid = 10^seq(-4, 1, length.out = 4),
+  C2_grid = 10^seq(-4, 1, length.out = 4),
+  number_split = 2,
+  seed = seed,
+  r_fixed = 3,
+  nbasis_fixed = 5,
+  target_task = NULL, 
+  info = FALSE
+)
+
+best_perm$C1
+best_perm$C2
+best_perm$est_vec
+best_perm$loss
+best_perm_by_task <- vector("list", ntask)
+
+for (index in 1:ntask) {
+  best_perm_by_task[[index]] <- tune_pERM_global_sameC(
+    X = X, D = D, Y = Y, effect = effect,
+    ntask = ntask,
+    C1_grid = 10^seq(-4, 1, length.out = 4),
+    C2_grid = 10^seq(-4, 1, length.out = 4),
+    number_split = 2,
+    seed = seed,
+    r_fixed = 3,
+    nbasis_fixed = 5,
+    target_task = index,
+    info = FALSE,
+    verbose = TRUE
+  )
 }
 ##############################################################################################################################
 ##############################################################################################################################

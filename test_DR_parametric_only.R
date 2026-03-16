@@ -270,7 +270,7 @@ simulation <- function(seed, n, similarity, dim){
   colnames(res) <- c("Task1", "Task2", "Task3", "Task4", "Task5")
   res <- cbind(res, seed=seed)
   res
-dictionary_mse = paste0("/orange/muxuan.liang/yongzhuo/TransferSemi_5/DR_9_new/mse_n_",n,"_simi_",similarity)
+dictionary_mse = paste0("DR_9_new/mse_n_",n,"_simi_",similarity)
 if (!file.exists(dictionary_mse)) {
   dir.create(dictionary_mse, recursive = TRUE)
 }
