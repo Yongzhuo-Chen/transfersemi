@@ -1,0 +1,714 @@
+---
+title: "read_simulation"
+author: "Yorick"
+date: "2024-10-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+work_dir = "../semi-transfer-learning/results_4_dim8"
+colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4", "#D55E00")
+colors <- c(
+  # ---- baseline（粉红系）----
+  "Baseline" = "#FFB3BA",                # soft pastel pink
+  "Data Pooling" = "#FFDFBA",     # peach pastel
+
+  # ---- transfer learning（蓝紫系）----
+  "Oracle Trans-Lasso" = "#BAE1FF",      
+  "pERM" = "#9BF6FF",                     
+  "Representation Transfer" = "steelblue1",  
+  "ARMUL" = "#6FA8DC",     # medium blue
+
+  # ---- fusion（绿色系）----
+# ---- fusion（绿色系）----
+"Late Fusion" = "#7CFC00",          # bright lawn green
+"Late Fusion with Nuisance" = "#2ECC71"   # bright emerald green
+)
+
+
+
+
+
+
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+load_compare_results <- function(compare_work_dir, n = 200, similarity = 1) {
+  
+  # Folder like: mse_n_200_simi_0.2compare
+  folder_path <- file.path(
+    compare_work_dir,
+    paste0("mse_n_", n, "_simi_", similarity, "compare")
+  )
+  
+  if (!dir.exists(folder_path)) {
+    warning(paste("Folder does not exist:", folder_path))
+    return(NULL)
+  }
+  
+  rds_files <- list.files(folder_path,
+                          pattern = "\\.rds$",
+                          full.names = TRUE)
+  
+  if (length(rds_files) == 0) {
+    warning(paste("No RDS files found in:", folder_path))
+    return(NULL)
+  }
+  
+  # ---------- read each RDS ----------
+  read_and_add_metadata <- function(file) {
+    
+    dat <- tryCatch(readRDS(file), error = function(e) {
+      message(sprintf("Error reading %s: %s", file, e))
+      return(NULL)
+    })
+    
+    if (is.null(dat)) return(NULL)
+    
+    dat$method  <- rownames(dat)
+    dat$dataset <- sub("\\.rds$", "", basename(file))
+    dat$seed    <- as.numeric(sub(".*_(\\d+)$", "\\1", dat$dataset))
+    
+    dat
+  }
+  
+  lst <- lapply(rds_files, read_and_add_metadata)
+  lst <- Filter(Negate(is.null), lst)
+  
+  if (length(lst) == 0) return(NULL)
+  
+  all_data <- do.call(rbind, lst)
+  all_data <- all_data[order(all_data$seed), ]
+  
+  # assumes first 5 columns are Task1..Task5
+  out <- data.frame(
+    task1 = all_data[, 1],
+    task2 = all_data[, 2],
+    task3 = all_data[, 3],
+    task4 = all_data[, 4],
+    task5 = all_data[, 5],
+    seed  = all_data$seed,
+    method = all_data$method,
+    n = n,
+    similarity = similarity
+  )
+  
+  return(out)
+}
+compare_work_dir <- "../semi-transfer-learning/results_compare_linear_dim8"
+
+# ---- similarity grid (edit if you have different folders) ----
+sim_grid <- seq(0, 1, by = 0.2)
+
+# ---- load all similarities ----
+compare_all <- bind_rows(lapply(sim_grid, function(s) {
+  load_compare_results(compare_work_dir, n = 100, similarity = s)
+}))
+
+# ---- avg across Task1..Task5 for each row (seed x method x similarity) ----
+compare_all <- compare_all %>%
+  mutate(
+    avg_task = rowMeans(select(., task1:task5), na.rm = TRUE),
+    similarity = as.numeric(similarity)
+  )
+
+# =========================
+# Plot A: boxplot across seeds at each similarity (per method)
+# =========================
+p_box <- ggplot(compare_all, aes(x = similarity, y = avg_task, group = factor(similarity))) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.03, alpha = 0.25, size = 0.8) +
+  facet_wrap(~ method, scales = "free_y") +
+  scale_y_log10() +
+  theme_bw(base_size = 14) +
+  labs(x = "Similarity", y = "Avg MSE across Task1..Task5 (log10)",
+       title = "Avg MSE vs similarity (distribution across seeds)") +
+  theme(axis.text.x = element_text(angle = 0))
+
+print(p_box)
+
+# =========================
+# Plot B: mean ± SE across seeds vs similarity (per method)
+# =========================
+sum_df <- compare_all %>%
+  group_by(method, similarity) %>%
+  summarise(
+    mean_avg = mean(avg_task, na.rm = TRUE),
+    se_avg   = sd(avg_task, na.rm = TRUE) / sqrt(sum(is.finite(avg_task))),
+    .groups = "drop"
+  )
+
+p_line <- ggplot(sum_df, aes(x = similarity, y = mean_avg)) +
+  geom_line() +
+  geom_point(size = 1.5) +
+  geom_errorbar(aes(ymin = mean_avg - se_avg, ymax = mean_avg + se_avg), width = 0.03) +
+  facet_wrap(~ method, scales = "free_y") +
+  scale_y_log10() +
+  theme_bw(base_size = 14) +
+  labs(x = "Similarity", y = "Mean(avg MSE) across seeds (log10)",
+       title = "Avg MSE vs similarity (mean ± SE)") 
+
+print(p_line)
+p_box <- ggplot(compare_all,
+                aes(x = factor(similarity),
+                    y = avg_task,
+                    fill = method)) +
+  geom_boxplot(outlier.shape = NA,
+               position = position_dodge(width = 0.8)) +
+  scale_y_log10() +
+  theme_bw(base_size = 15) +
+  labs(x = "Similarity",
+       y = "Avg MSE across Task1..Task5 (log10)",
+       title = "Method Comparison vs Similarity") +
+  theme(legend.position = "right")
+
+print(p_box)
+```
+
+# Data Preprocess
+
+```{r}
+library(dplyr)
+work_dir = "../semi-transfer-learning/results_before_dim8"
+
+compare_work_dir = "../semi-transfer-learning/results_5_dim8"
+compare_work_dir="../semi-transfer-learning/results_11_dim8"
+methods_replace <- c("Net_Transfer", "ARMUL_lasso", "pERM_Transfer")
+methods_replace <- c("Pooled")
+
+read_folder_make_output <- function(folder_path, n, similarity) {
+
+  rds_files <- list.files(folder_path, pattern = "\\.rds$", full.names = TRUE)
+
+  read_and_add_metadata <- function(file) {
+    data <- tryCatch(readRDS(file), error = function(e) {
+      message(sprintf("Error reading %s: %s", file, e))
+      return(NULL)
+    })
+    if (is.null(data)) return(NULL)
+
+    data$method <- rownames(data)
+    data$dataset <- sub("\\.rds$", "", basename(file))
+    data$seed <- as.numeric(sub(".*_(\\d+)$", "\\1", data$dataset))
+    data
+  }
+
+  rds_data <- lapply(rds_files, read_and_add_metadata)
+  rds_data <- Filter(Negate(is.null), rds_data)
+  all_data <- do.call(rbind, rds_data)
+  all_data <- all_data[order(all_data$seed), ]
+
+  max_per_row    <- apply(all_data[, 1:5], 1, max)
+  mean_per_row   <- apply(all_data[, 1:5], 1, mean)
+  median_per_row <- apply(all_data[, 1:5], 1, median)
+
+  output <- data.frame(
+    max_value    = max_per_row,
+    mean_value   = mean_per_row,
+    median_value = median_per_row,
+    task1 = all_data[, 1],
+    task2 = all_data[, 2],
+    task3 = all_data[, 3],
+    task4 = all_data[, 4],
+    task5 = all_data[, 5],
+    seed  = all_data$seed,
+    method = all_data$method,
+    n = n,
+    similarity = similarity
+  )
+
+  output
+}
+
+# -------------------------
+# Main (replace 3 methods)
+# -------------------------
+setwd(work_dir)
+
+all_combined <- NULL
+
+for (n in c(100, 200)) {
+  for (similarity in c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) {
+
+    folder_base <- file.path(work_dir, sprintf("mse_n_%d_simi_%slambda_len100", n, similarity))
+    folder_cmp  <- file.path(compare_work_dir, sprintf("mse_n_%d_simi_%s%s", n, similarity, "lambda_len100"))
+
+    output_file <- sprintf("%s/mse_n_%d_simi_%.2f.RData", work_dir, n, similarity)
+
+    base_out <- read_folder_make_output(folder_base, n, similarity)
+    cmp_out  <- read_folder_make_output(folder_cmp,  n, similarity)
+
+    # replace: keep non-replaced methods from base, and take replaced methods from compare
+    final_out <- bind_rows(
+      base_out %>% filter(!(method %in% methods_replace)),
+      cmp_out  %>% filter(method %in% methods_replace)
+    ) %>%
+      arrange(method, seed)
+
+    # save back to the SAME file (in work_dir)
+    output <- final_out
+    save(output, file = output_file)
+
+    all_combined <- bind_rows(all_combined, final_out)
+  }
+}
+
+```
+
+# Start Visuallization
+
+```{r}
+
+setwd(work_dir)
+library(dplyr)
+library(reshape2)
+library(labelled)
+library(ggplot2)
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+for (file in files) {
+  cat("Loaded:", file, "\n")
+}
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+
+simi_val <- as.numeric(sub(".*simi_([0-9.]+)\\.RData$", "\\1", files))
+
+files <- files[simi_val %in% c(0, 0.2, 0.4, 0.6, 0.8, 1.0)]
+
+files
+
+prepare_data <- function(result, file_name) {
+  # Define methods to analyze
+  methods <- c("Baseline", "Sai_Transfer", "Para_Transfer_Tuned", "NonPara_Transfer_Tuned", "Net_Transfer", "ARUML_lasso_Transfer", "pERM_Transfer", "Pooled")
+
+  # Generate quantile data for each method
+  quantiles_list <- lapply(methods, function(m) {
+    # 1 meas max and 2 means mean
+    quantile_df <- apply(result[result$method == m, "mean_value", drop = FALSE], 2, function(col) {
+      quantile(col, probs = c(0, 0.25, 0.5, 0.75))
+    })
+    colnames(quantile_df) <- m
+    quantile_df
+  })
+
+  # Combine quantile data and reshape it to long format
+  quantiles <- do.call(cbind, quantiles_list)
+  quantiles_long <- melt(quantiles, variable.name = "Method", value.name = "Value")
+  
+  # Add a column with the file name for faceting
+  quantiles_long$Dataset <- basename(file_name)
+  
+  return(quantiles_long)
+}
+
+
+
+
+load(files[1])
+all_data <- do.call(rbind, lapply(files, function(file) {
+  result <- load(file)
+  result <- get(result)
+  prepare_data(result, file)
+}))
+all_data <- all_data %>%
+  mutate(
+    # Extract 'n' (e.g., 200 from "mse_n_200_simi_0.4")
+    n = as.numeric(gsub(".*_n_(\\d+)_.*", "\\1", Dataset)),
+    
+    # Extract 'similarity' (e.g., 0.4 from "mse_n_200_simi_0.4")
+    similarity = as.numeric(gsub(".*_simi_(\\d+(?:\\.\\d+)?).*", "\\1", Dataset))
+  )
+all_data <- all_data %>%
+  rename(Method = Var2) |> filter(n!=500)
+
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("" ,value)  # Format 'similarity' as "similarity = ..."
+)
+
+# Plot with customized facet labels
+plot <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 6, angle = 20)
+  ) #+
+  #scale_fill_manual(values = c("orange", "darkgreen"))
+library(stringr)
+
+all_data_1 = all_data
+all_data <- all_data_1 %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Net_Transfer") ~ "Representation Transfer",
+    str_detect(Method, "ARUML_lasso_Transfer") ~ "ARMUL",
+    str_detect(Method, "pERM_Transfer") ~ "pERM",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    TRUE ~ Method
+    
+
+  ))
+all_data$Method <- factor(all_data$Method,
+  levels = c(
+    "Baseline",
+    "Data Pooling",                 # Pooling
+    "Oracle Trans-Lasso",
+    "pERM",
+    "Representation Transfer",     # Representation Learning
+    "ARMUL",
+    "Late Fusion",
+    "Late Fusion with Nuisance"
+  )
+)
+
+method_order <- all_data %>%
+  group_by(Method) %>%
+  summarise(med_value = median(Value, na.rm = TRUE)) %>%
+  arrange(desc(med_value)) %>%
+  pull(Method)
+all_data$Method <- factor(all_data$Method, levels = method_order)
+plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    #axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_blank(),
+    legend.position = "bottom"
+    #strip.text = element_text(size = 6, angle = 20)
+  ) + scale_y_log10()+
+  scale_fill_manual(values = colors)
+ggsave(
+  filename = "../semi-transfer-learning/PLM_mean_mse_plot.pdf",  # Specify the filename
+  plot = plot1,                        # Specify the plot object
+  width = 10, height = 6,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+plot1
+all_data
+```
+
+
+
+
+
+
+
+```{r}
+setwd(work_dir)
+library(dplyr)
+library(reshape2)
+library(labelled)
+library(ggplot2)
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+for (file in files) {
+  cat("Loaded:", file, "\n")
+}
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+
+simi_val <- as.numeric(sub(".*simi_([0-9.]+)\\.RData$", "\\1", files))
+
+files <- files[simi_val %in% c(0, 0.2, 0.4, 0.6, 0.8, 1.0)]
+
+files
+
+prepare_data_ <- function(result, file_name) {
+  # Define methods to analyze
+  methods <- c("Baseline", "Sai_Transfer", "Para_Transfer_Tuned", "NonPara_Transfer_Tuned", "Net_Transfer", "ARMUL_transfer", "pERM_Transfer", "Pooled")
+
+  # Generate quantile data for each method
+  quantiles_list <- lapply(methods, function(m) {
+    quantile_df <- apply(result[result$method == m, "max_value", drop = FALSE], 2, function(col) {
+      quantile(col, probs = c(0, 0.25, 0.5, 0.75))
+    })
+    colnames(quantile_df) <- m
+    quantile_df
+  })
+
+  # Combine quantile data and reshape it to long format
+  quantiles <- do.call(cbind, quantiles_list)
+  quantiles_long <- melt(quantiles, variable.name = "Method", value.name = "Value")
+  
+  # Add a column with the file name for faceting
+  quantiles_long$Dataset <- basename(file_name)
+  
+  return(quantiles_long)
+}
+
+all_data <- do.call(rbind, lapply(files, function(file) {
+  result <- load(file)  # Load the RData file (assumes it loads 'result' variable)\
+  result <- get(result)
+  prepare_data_(result, file)
+}))
+all_data <- all_data %>%
+  mutate(
+    # Extract 'n' (e.g., 200 from "mse_n_200_simi_0.4")
+    n = as.numeric(gsub(".*_n_(\\d+)_.*", "\\1", Dataset)),
+    
+    # Extract 'similarity' (e.g., 0.4 from "mse_n_200_simi_0.4")
+    similarity = as.numeric(gsub(".*_simi_(\\d+(?:\\.\\d+)?).*", "\\1", Dataset))
+  )
+all_data <- all_data %>%
+  rename(Method = Var2) |> filter(n!=500)
+all_data <- all_data %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Net_Transfer") ~ "Representation Transfer",
+    str_detect(Method, "ARMUL_transfer") ~ "ARMUL",
+    str_detect(Method, "pERM_Transfer") ~ "pERM",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    TRUE ~ Method
+    
+
+  ))
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("", value)  # Format 'similarity' as "similarity = ..."
+)
+
+# Plot with customized facet labels
+plot <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot() +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Maximum MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 6, angle = 20)
+  ) #+
+  #scale_fill_manual(values = c("orange", "darkgreen"))
+
+all_data$Method <- factor(all_data$Method,
+  levels = c(
+    "Baseline",
+    "Data Pooling",                 # Pooling
+    "Oracle Trans-Lasso",
+    "pERM",
+    "Representation Transfer",     # Representation Learning
+    "ARMUL",
+    "Late Fusion",
+    "Late Fusion with Nuisance"
+  )
+)
+library(dplyr)
+
+method_order <- all_data %>%
+  group_by(Method) %>%
+  summarise(med_value = median(Value, na.rm = TRUE)) %>%
+  arrange(desc(med_value)) %>%
+  pull(Method)
+
+all_data$Method <- factor(all_data$Method, levels = method_order)
+plot2 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Maximum MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    axis.text.x = element_blank(),
+    legend.position = "bottom"
+   # strip.text = element_text(size = 6, angle = 20)
+  )  + scale_y_log10()+
+  scale_fill_manual(values = colors)
+ggsave(
+  filename = "../semi-transfer-learning/PLM_maximum_mse_plot.pdf",  # Specify the filename
+  plot = plot2,                        # Specify the plot object
+  width = 10, height = 6,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+plot2
+all_data
+```
+
+
+```{r}
+library(patchwork)
+library(patchwork)
+p1 <- plot1 +
+  theme(text = element_text(size = 16)) +
+  scale_y_log10(limits = c(1e-5, NA))
+
+p2 <- plot2 +
+  theme(text = element_text(size = 16)) +
+  scale_y_log10(limits = c(1e-5, NA))
+
+combined_plot <- cowplot::plot_grid(p1, p2, ncol = 1, align = "v")
+
+combined_plot
+
+ggsave(filename = "Combined_PLM_group_plot.pdf", 
+       plot = combined_plot, 
+       width = 12,    # Increase this value to make the plot wider
+       height = 8,    # Adjust the height accordingly if needed
+       dpi = 300)
+
+```
+
+
+
+```{r}
+all_combined
+final_combined <- all_combined %>%
+  mutate(method = case_when(
+    str_detect(method, "Baseline") ~ "Baseline",
+    str_detect(method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+    str_detect(method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(method, "Net_Transfer") ~ "Representation Transfer",
+    str_detect(method, "ARMUL_transfer") ~ "ARMUL",
+    str_detect(method, "pERM_Transfer") ~ "pERM",
+    str_detect(method, "Pooled") ~ "Data Pooling",
+    TRUE ~ method
+    
+
+  ))
+
+final_combined <- final_combined[, 4:12]
+final_combined[, 1:5] <- log(final_combined[, 1:5])
+mat<-final_combined %>%
+  group_by(method, similarity, n) %>%                             # 1. group by method
+  summarise(across(starts_with("task"),                # 2. for every column whose
+                   ~ (mean(.x, na.rm = TRUE)),           #    name begins with “task”
+                   .names = "mean_{.col}")) |> filter(n==200)
+
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+df_heatmap <- as.data.frame(mat |> filter(n==200))
+df_long <- df_heatmap %>%
+  pivot_longer(cols = starts_with("mean_task"), names_to = "task", values_to = "value")
+
+# Clean task labels
+df_long$task <- gsub("mean_", "", df_long$task)
+
+# Plot heatmap
+ggplot(df_long |> filter(method=="Baseline"), aes(x = similarity, y = task, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red") +
+  theme_minimal() +
+  labs(x = "Task", y = "Method", fill = "Mean") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+methods <- c(
+  "Baseline",
+  "Data Pooling",
+  "Oracle Trans-Lasso",
+  "pERM",
+  "Representation Transfer",
+  "ARMUL",
+  "Late Fusion",
+  "Late Fusion with Nuisance"
+)
+df_long = df_long |> filter(method %in% methods)
+
+df_long$method <- factor(df_long$method, levels = method_order)
+library(ggplot2)
+library(dplyr)
+
+p <- ggplot(df_long, aes(x = similarity, y = task, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red") +
+  facet_wrap(~method, nrow = 2, ncol = 4) +
+  theme_minimal() +
+  labs(x = "Similarity", y = "Task", fill = "Mean") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 11, face = "bold")
+  )
+
+p
+p
+ggsave(
+  filename = "../semi-transfer-learning/PLM_heat_map_PLM.pdf",  # Specify the filename
+  plot = p,                        # Specify the plot object
+  width = 12, height = 8,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+```
+
+
+
+```{r}
+method_order <- c(
+  "Baseline",
+  "Data Pooling",
+  "Oracle Trans-Lasso",
+  "Representation Transfer",
+  "pERM",
+  "ARMUL",
+  "Late Fusion",
+  "Late Fusion with Nuisance"
+)
+df_long$method <- factor(df_long$method, levels = method_order)
+p <- ggplot(df_long, aes(x = task, y = similarity, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red", name = "Mean of Log") +
+  guides(fill = guide_colorbar(
+    barwidth = 15,
+    barheight = 2,
+    title.theme = element_text(size = 18),
+    label.theme = element_text(size = 20)
+  )) +
+  scale_x_discrete(labels = c(
+    "task1" = "T1",
+    "task2" = "T2",
+    "task3" = "T3",
+    "task4" = "T4",
+    "task5" = "T5"
+  )) +
+  facet_wrap(~method, ncol = 4) +
+  theme_minimal(base_size = 23) +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 15),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(1.5, "lines"),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  "../semi-transfer-learning/PLM_heat_map_PLM.pdf",
+  plot = p,
+  width = 16,
+  height = 8,
+  dpi = 300
+)
+
+p
+```
+

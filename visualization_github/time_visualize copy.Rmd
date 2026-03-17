@@ -1,0 +1,294 @@
+---
+title: "time_visualize"
+output: html_document
+---
+
+```{r}
+library(data.table)
+
+BASE <- "semi-transfer-learning"
+dims <- c(8, 20)
+ns <- c(100, 200)
+simis <- seq(0, 1, by = 0.2)
+
+methods <- c("Late Fusion", "Late Fusion with Nuisance")
+
+colors <- c(
+"Late Fusion" = "#7CFC00",          # bright lawn green
+"Late Fusion with Nuisance" = "#2ECC71"   # bright emerald green
+)
+
+
+# ---------- load raw seed-level times (best for boxplots) ----------
+all_rows <- list()
+# --------------------------
+# Load data (seed-averaged per simi)
+# --------------------------
+rows <- list()
+for (dim in dims) {
+  root <- file.path(BASE, sprintf("time_6_dim_%d", dim))
+  for (n in ns) {
+    for (simi in simis) {
+      folder <- file.path(root, sprintf("_n_%d_simi_%s", n, format(simi, nsmall = 1)))
+      if (!dir.exists(folder)) next
+
+      files <- list.files(folder, pattern = "^time_data_seed_.*\\.csv$", full.names = TRUE)
+      if (length(files) == 0) next
+
+      for (f in files) {
+        dt <- fread(f)
+        all_rows[[length(all_rows)+1]] <- data.table(
+          dim = dim,
+          n = n,
+          similarity = simi,
+          Method = "Late Fusion",
+          Value = as.numeric(dt$time_para_transfer[1])
+        )
+        all_rows[[length(all_rows)+1]] <- data.table(
+          dim = dim,
+          n = n,
+          similarity = simi,
+          Method = "Late Fusion with Nuisance",
+          Value = as.numeric(dt$time_nonpar_transfer[1])
+        )
+      }
+    }
+  }
+}
+all_data <- rbindlist(all_rows, fill = TRUE)
+
+# ---- convert seconds → minutes ----
+all_data[, Value := Value / 60]
+
+all_data[, `:=`(
+  n = factor(n, levels = ns),
+  similarity = factor(similarity, levels = simis),
+  Method = factor(Method, levels = names(colors))
+)]
+
+library(ggplot2)
+
+custom_labeller2 <- labeller(
+  n = function(x) paste0("n=", x),
+  dim = function(x) paste0("dim=", x)
+)
+
+p <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_grid(n ~ dim, labeller = custom_labeller2, scales = "free_y") +
+  labs(x = "Method", y = "Time (minutes)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "bottom"
+  ) +
+  scale_y_log10() +
+  scale_fill_manual(values = colors)
+
+ggsave(
+  filename = "time_visualize_minutes.pdf",
+  plot = p,
+  width = 10, height = 8,
+  dpi = 300
+)
+
+p
+
+```
+
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+# all_data already created in your code:
+# columns: dim, n, similarity (factor), Method (factor), Value
+
+# make sure similarity is ordered 0.0..1.0
+all_data[, similarity := factor(similarity, levels = simis)]
+all_data[, Method := factor(Method, levels = names(colors))]
+all_data[, n := factor(n, levels = ns)]
+all_data[, dim := factor(dim, levels = dims)]
+
+custom_labeller2 <- labeller(
+  n = function(x) paste0("n=", x),
+  dim = function(x) paste0("dim=", x)
+)
+library(data.table)
+
+summary_data <- all_data[, .(
+  log_mean = mean(log(Value)),
+  log_se   = sd(log(Value))/sqrt(.N)
+), by = .(dim, n, similarity, Method)]
+
+summary_data[, `:=`(
+  mean = exp(log_mean),
+  ymin = exp(log_mean - 1.96*log_se),
+  ymax = exp(log_mean + 1.96*log_se)
+)]
+# log scale cannot plot <=0
+summary_data[ymin <= 0, ymin := min(mean) * 0.5]
+baseline <- min(summary_data$ymin[is.finite(summary_data$ymin) & summary_data$ymin > 0]) * 0.8
+summary_data[, base := baseline]
+
+p_simi_bar_like <- ggplot(summary_data, aes(x = similarity, y = mean, color = Method)) +
+  geom_linerange(
+    aes(ymin = base, ymax = mean),
+    position = position_dodge(width = 0.6),
+    linewidth = 8,   # thickness = looks like a bar
+    lineend = "butt"
+  ) +
+  geom_errorbar(
+    aes(ymin = ymin, ymax = ymax),
+    position = position_dodge(width = 0.6),
+    width = 0.25,
+    linewidth = 0.5
+  ) +
+  facet_grid(dim ~ n, labeller = custom_labeller2, scales = "free_y") +
+  labs(x = "Similarity", y = "Time (minutes)") +
+  scale_y_log10() +
+  scale_color_manual(values = colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+    axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+p_simi_bar_like
+ggsave(
+  "time_visualize_by_similarity_bar_ci.pdf",
+  p_simi_bar,
+  width = 12, height = 8,
+  dpi = 300
+)
+
+p_simi_bar
+```
+
+
+
+```{r}
+table_data <- summary_data[, .(
+  mean_time = round(mean, 3)
+), by = .(dim, n, similarity, Method)]
+library(data.table)
+
+table_wide <- dcast(
+  table_data,
+  dim + n + similarity ~ Method,
+  value.var = "mean_time"
+)
+
+table_wide
+library(knitr)
+
+latex_table <- kable(
+  table_wide,
+  format = "latex",
+  booktabs = TRUE,
+  digits = 3
+)
+
+cat(latex_table)
+```
+
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(scales)
+
+# ensure factors are ordered as you had
+all_data[, similarity := factor(similarity, levels = simis)]
+all_data[, Method := factor(Method, levels = names(colors))]
+all_data[, n := factor(n, levels = ns)]
+all_data[, dim := factor(dim, levels = dims)]
+
+custom_labeller2 <- labeller(
+  n = function(x) paste0("n=", x),
+  dim = function(x) paste0("dim=", x)
+)
+
+# mean bar + 95% CI errorbar
+p_simi_bar <- ggplot(all_data, aes(x = similarity, y = Value, fill = Method)) +
+  stat_summary(
+    fun = mean,
+    geom = "col",
+    position = position_dodge(width = 0.75),
+    width = 0.65
+  ) +
+  stat_summary(
+    fun.data = mean_cl_normal,
+    geom = "errorbar",
+    position = position_dodge(width = 0.75),
+    width = 0.25
+  ) +
+  facet_grid(dim ~ n, labeller = custom_labeller2, scales = "free_y") +
+  labs(x = "Similarity", y = "Time (minutes)") +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  scale_fill_manual(values = colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+    axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12),
+    legend.position = "bottom"
+  ) + scale_y_log10(
+  limits = c(0.01, NA)
+) 
+ggsave("time_visualize_for_PLM_bar_ci.pdf", p_simi_bar, width = 12, height = 8, dpi = 300)
+p_simi_bar
+```
+
+```{r}
+all_data[, Value := Value * 60]   # minutes → seconds
+summary_data <- all_data[, .(
+  log_mean = mean(log(Value)),
+  log_se   = sd(log(Value)) / sqrt(.N)
+), by = .(dim, n, similarity, Method)]
+
+summary_data[, `:=`(
+  mean = exp(log_mean),
+  ymin = exp(log_mean - 1.96 * log_se),
+  ymax = exp(log_mean + 1.96 * log_se)
+)]
+p_simi_bar <- ggplot(summary_data, aes(x = similarity, y = mean, fill = Method)) +
+  geom_col(
+    position = position_dodge(width = 0.75),
+    width = 0.65
+  ) +
+  geom_errorbar(
+    aes(ymin = ymin, ymax = ymax),
+    position = position_dodge(width = 0.75),
+    width = 0.25,
+    linewidth = 0.5
+  ) +
+  facet_grid(dim ~ n, labeller = custom_labeller2, scales = "free_y") +
+  labs(x = "Similarity", y = "Time (seconds)") +
+  scale_y_log10() +
+  scale_fill_manual(values = colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+    axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  "time_visualize_by_similarity_bar_ci_log_seconds.pdf",
+  p_simi_bar,
+  width = 12, height = 8,
+  dpi = 300
+)
+
+p_simi_bar
+```
+
