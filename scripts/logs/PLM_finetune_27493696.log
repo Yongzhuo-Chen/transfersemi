@@ -1,0 +1,1067 @@
+Wed Mar 18 11:04:18 AM EDT 2026
+c0703a-s13.ufhpc
+/blue/sai.zhang/chen.yongzhuo/TransferSemi_github/scripts
+[[1]]
+[[1]]$value
+function (models, X_test_list, task_id, link = "linear") 
+{
+    spline_funs <- models$spline_funs
+    Theta <- matrix(models$vanilla[task_id, , 1, drop = FALSE])
+    Xs_test <- NULL
+    X_task <- X_test_list[[task_id]]
+    for (j in 1:ncol(X_task)) {
+        if (is.null(spline_funs)) {
+            Xs_j <- X_task[, j, drop = FALSE]
+        }
+        else {
+            Xs_j <- spline_funs[[j]](X_task[, j])
+        }
+        Xs_test <- cbind(Xs_test, Xs_j)
+    }
+    z <- Xs_test %*% Theta
+    if (link == "linear") 
+        return(z)
+    if (link == "logistic") 
+        return(1/(1 + exp(-z)))
+}
+
+[[1]]$visible
+[1] FALSE
+
+
+[[2]]
+[[2]]$value
+function (X, D, Y, split_index = NULL, number_split = 2, nonpar_transfer = FALSE, 
+    propensity_score = NULL, mu0 = NULL, mu1 = NULL, dim = 1, 
+    real_data = FALSE) 
+{
+    sample_size <- length(Y)
+    if (is.null(split_index)) {
+        split_index <- sample(1:number_split, sample_size, replace = TRUE)
+    }
+    else {
+        number_split <- length(unique(split_index))
+    }
+    f.value <- f.gradient <- EX <- NULL
+    if (!nonpar_transfer) {
+        propensity_score <- main_effect <- mu0 <- mu1 <- array(0, 
+            c(sample_size, 1))
+    }
+    else {
+        main_effect <- (mu0 + mu1)/2
+    }
+    coef_estimate <- gradient <- hessian <- NULL
+    fit <- NULL
+    for (index in 1:number_split) {
+        fit[[index]] <- list()
+        coef_estimate[[index]] <- list()
+        gradient[[index]] <- hessian[[index]] <- list()
+        f.value[[index]] <- f.gradient[[index]] <- EX[[index]] <- list()
+    }
+    for (index in 1:number_split) {
+        fit[[index]] <- list()
+        coef_estimate[[index]] <- list()
+        gradient[[index]] <- hessian[[index]] <- list()
+        if (!nonpar_transfer) {
+            propensity_score[split_index == index] <- ks(X[split_index != 
+                index, ], D[split_index != index], X[split_index == 
+                index, ], bandwidth_scale = 2)
+            mu0[split_index == index] <- ks(X[split_index != 
+                index & D == 0, ], Y[split_index != index & D == 
+                0], X[split_index == index, ], bandwidth_scale = 2)
+            mu1[split_index == index] <- ks(X[split_index != 
+                index & D == 1, ], Y[split_index != index & D == 
+                1], X[split_index == index, ], bandwidth_scale = 2)
+            main_effect[split_index == index] <- (mu0[split_index == 
+                index] + mu1[split_index == index])/2
+        }
+    }
+    pseudo.Y_list <- list()
+    X_list <- list()
+    for (index in 1:number_split) {
+        pseudo.Y <- (D[split_index != index] == 1)/propensity_score[split_index != 
+            index] * (Y[split_index != index] - mu1[split_index != 
+            index]) - (D[split_index != index] == 0)/(1 - propensity_score[split_index != 
+            index]) * (Y[split_index != index] - mu0[split_index != 
+            index]) + mu1[split_index != index] - mu0[split_index != 
+            index]
+        pseudo.Y_list[[index]] <- pseudo.Y
+        X_list[[index]] <- X[split_index != index, ]
+        if (real_data) {
+            x_train <- as.data.frame(X[train_idx, , drop = FALSE])
+            x_train <- x_train[, !colnames(x_train) %in% c("age_categoryBelow_55", 
+                "yearmamsum0"), drop = FALSE]
+            x_train <- x_train[, apply(x_train, 2, var) > 0, 
+                drop = FALSE]
+            x_train <- as.data.frame(scale(x_train))
+            X_list[[index]] <- x_train
+            x_train$y <- pseudo.Y
+            fit[[index]] <- MAVE::mave(y ~ ., data = x_train, 
+                method = "csopg", max.dim = dim)
+        }
+        else {
+            fit[[index]] <- MAVE::mave(pseudo.Y ~ X[split_index != 
+                index, ], method = "csopg", max.dim = dim)
+        }
+        for (index2 in 1:dim) {
+            beta <- fit[[index]]$dir[[index2]]
+            if (dim(beta)[2] > 1) {
+                coef_estimate[[index]][[index2]] <- beta %*% 
+                  solve(beta[1:dim, 1:dim])
+            }
+            else {
+                coef_estimate[[index]][[index2]] <- beta/beta[1]
+            }
+            link <- X %*% coef_estimate[[index]][[index2]]
+            f.bw <- np::npregbw(xdat = link[split_index != index, 
+                , drop = FALSE], ydat = pseudo.Y, newdata = link)
+            f_fit <- np::npreg(f.bw, exdat = link, gradients = TRUE)
+            f.value[[index]][[index2]] <- f_fit$mean
+            f.gradient[[index]][[index2]] <- f_fit$grad
+            EX[[index]][[index2]] <- apply(X[split_index != index, 
+                , drop = FALSE], 2, function(t) {
+                f.bw <- np::npregbw(xdat = link[split_index != 
+                  index, , drop = FALSE], ydat = t, newdata = link)
+                f_fit <- np::npreg(f.bw, exdat = link, gradients = FALSE)
+                f_fit$mean
+            })
+            coef.dim <- NCOL(beta)
+            gradient[[index]][[index2]] <- array(0, dim = c(coef.dim * 
+                (NCOL(X) - coef.dim), 1))
+            hessian[[index]][[index2]] <- matrix(0, nrow = coef.dim * 
+                (NCOL(X) - coef.dim), ncol = coef.dim * (NCOL(X) - 
+                coef.dim))
+            signed_weight <- 2 * (D - 0.5)/(propensity_score * 
+                D + (1 - propensity_score) * (1 - D))
+            unsigned_weight <- 0.5/(propensity_score * D + (1 - 
+                propensity_score) * (1 - D))
+            for (index3 in 1:sample_size) {
+                if (split_index[index3] == index) {
+                  gradient[[index]][[index2]] <- gradient[[index]][[index2]] - 
+                    c(signed_weight[index3] * (Y[index3] - (D[index3] - 
+                      0.5) * f.value[[index]][[index2]][index3] - 
+                      main_effect[index3]) * kronecker(f.gradient[[index]][[index2]][index3, 
+                      , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                      EX[[index]][[index2]][index3, -(1:coef.dim)]))
+                  hessian[[index]][[index2]] <- hessian[[index]][[index2]] + 
+                    unsigned_weight[index3] * c(kronecker(f.gradient[[index]][[index2]][index3, 
+                      , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                      EX[[index]][[index2]][index3, -(1:coef.dim)])) %*% 
+                      t(c(kronecker(f.gradient[[index]][[index2]][index3, 
+                        , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                        EX[[index]][[index2]][index3, -(1:coef.dim)])))
+                }
+            }
+            hessian[[index]][[index2]] <- hessian[[index]][[index2]]/(sum(split_index == 
+                index))
+            gradient[[index]][[index2]] <- gradient[[index]][[index2]]/sum(split_index == 
+                index)
+        }
+    }
+    return(list(hessian = hessian, gradient = gradient, coef_estimate = coef_estimate, 
+        V_estimate = hessian, number_split = number_split, split_index = split_index, 
+        pseudo.Y_list = pseudo.Y_list, X_list = X_list))
+}
+
+[[2]]$visible
+[1] FALSE
+
+
+[[3]]
+[[3]]$value
+function (coef_candidate, X, D, Y, split_index, max.dim, nfold, 
+    lambda) 
+{
+    which_min <- error.min <- array(0, c(max.dim, 1))
+    for (dim in 1:max.dim) {
+        error <- array(0, c(nfold, length(lambda)))
+        for (fold in 1:nfold) {
+            coef <- coef_candidate[[dim]][[fold]]
+            propensity_score <- ks(X[split_index == fold, ], 
+                D[split_index == fold], X[split_index != fold, 
+                  ])
+            mu0 <- ks(X[split_index == fold & D == 0, ], Y[split_index == 
+                fold & D == 0], X[split_index != fold, ])
+            mu1 <- ks(X[split_index == fold & D == 1, ], Y[split_index == 
+                fold & D == 1], X[split_index != fold, ])
+            main_effect <- (mu0 + mu1)/2
+            unsigned_weight <- 1/(propensity_score * D[split_index != 
+                fold] + (1 - propensity_score) * (1 - D[split_index != 
+                fold]))
+            error[fold, ] <- apply(coef, 2, function(beta) {
+                if (dim > 1) {
+                  coef <- array(0, dim = c(NCOL(X), dim))
+                  coef[1:dim, ] <- pracma::eye(dim)
+                  coef[-(1:dim), ] <- matrix(beta, nrow = NCOL(X) - 
+                    dim, ncol = dim)
+                }
+                else {
+                  coef <- c(1, c(beta))
+                }
+                link <- X %*% coef
+                f.bw <- np::npregbw(xdat = link[split_index == 
+                  fold, , drop = FALSE], ydat = Y[split_index == 
+                  fold], newdata = link)
+                f_fit <- np::npreg(f.bw, exdat = link, gradients = FALSE)
+                mean(unsigned_weight * (Y[split_index != fold] - 
+                  (D[split_index != fold] - 0.5) * f_fit$mean[split_index != 
+                    fold] - main_effect)^2)
+            })
+        }
+        error_aggre <- apply(error, 2, mean)
+        which_min[dim] <- which.min(error_aggre)
+        error.min[dim] <- min(error_aggre)
+    }
+    dim.opt <- which.min(error.min)
+    lambda.opt <- which_min[dim.opt]
+    return(list(dim.opt = dim.opt, lambda.opt = lambda.opt, error = error_aggre))
+}
+
+[[3]]$visible
+[1] FALSE
+
+
+[[4]]
+[[4]]$value
+function (X, Y, split_index = NULL, number_split = 2, nonpar_transfer = FALSE, 
+    f.value = NULL, EX = NULL, dim = 1) 
+{
+    sample_size <- length(Y)
+    if (is.null(split_index)) {
+        split_index <- sample(1:number_split, sample_size, replace = TRUE)
+    }
+    else {
+        number_split <- length(unique(split_index))
+    }
+    if (!nonpar_transfer) {
+        f.value <- f.gradient <- EX <- NULL
+    }
+    else {
+        f.gradient <- NULL
+    }
+    coef_estimate <- gradient <- hessian <- NULL
+    fit <- NULL
+    for (index in 1:number_split) {
+        fit[[index]] <- list()
+        coef_estimate[[index]] <- list()
+        gradient[[index]] <- hessian[[index]] <- list()
+        if (!nonpar_transfer) {
+            f.value[[index]] <- f.gradient[[index]] <- EX[[index]] <- list()
+        }
+        else {
+            f.gradient[[index]] <- list()
+        }
+    }
+    for (index in 1:number_split) {
+        fit[[index]] <- MAVE::mave(Y[split_index != index] ~ 
+            X[split_index != index, ], method = "csopg", max.dim = dim)
+        for (index2 in 1:dim) {
+            beta <- fit[[index]]$dir[[index2]]
+            if (dim(beta)[2] > 1) {
+                coef_estimate[[index]][[index2]] <- beta %*% 
+                  solve(beta[1:dim, 1:dim])
+            }
+            else {
+                coef_estimate[[index]][[index2]] <- beta/beta[1]
+            }
+            if (!nonpar_transfer) {
+                link <- X %*% coef_estimate[[index]][[index2]]
+                f.bw <- np::npregbw(xdat = link[split_index != 
+                  index, , drop = FALSE], ydat = Y[split_index != 
+                  index], newdata = link)
+                f_fit <- np::npreg(f.bw, exdat = link, gradients = TRUE)
+                f.value[[index]][[index2]] <- f_fit$mean
+                f.gradient[[index]][[index2]] <- f_fit$grad
+                EX[[index]][[index2]] <- apply(X[split_index != 
+                  index, , drop = FALSE], 2, function(t) {
+                  f.bw <- np::npregbw(xdat = link[split_index != 
+                    index, , drop = FALSE], ydat = t, newdata = link)
+                  f_fit <- np::npreg(f.bw, exdat = link, gradients = FALSE)
+                  f_fit$mean
+                })
+            }
+            else {
+                link <- X %*% coef_estimate[[index]][[index2]]
+                f.bw <- np::npregbw(xdat = link[split_index != 
+                  index, , drop = FALSE], ydat = Y[split_index != 
+                  index], newdata = link)
+                f_fit <- np::npreg(f.bw, exdat = link, gradients = TRUE)
+                f.gradient[[index]][[index2]] <- f_fit$grad
+            }
+            coef.dim <- NCOL(beta)
+            gradient[[index]][[index2]] <- array(0, dim = c(coef.dim * 
+                (NCOL(X) - coef.dim), 1))
+            hessian[[index]][[index2]] <- matrix(0, nrow = coef.dim * 
+                (NCOL(X) - coef.dim), ncol = coef.dim * (NCOL(X) - 
+                coef.dim))
+            for (index3 in 1:sample_size) {
+                if (split_index[index3] == index) {
+                  gradient[[index]][[index2]] <- gradient[[index]][[index2]] - 
+                    c((Y[index3] - f.value[[index]][[index2]][index3]) * 
+                      kronecker(f.gradient[[index]][[index2]][index3, 
+                        , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                        EX[[index]][[index2]][index3, -(1:coef.dim)]))
+                  hessian[[index]][[index2]] <- hessian[[index]][[index2]] + 
+                    c(kronecker(f.gradient[[index]][[index2]][index3, 
+                      , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                      EX[[index]][[index2]][index3, -(1:coef.dim)])) %*% 
+                      t(c(kronecker(f.gradient[[index]][[index2]][index3, 
+                        , drop = FALSE], X[index3, -(1:coef.dim)] - 
+                        EX[[index]][[index2]][index3, -(1:coef.dim)])))
+                }
+            }
+            hessian[[index]][[index2]] <- hessian[[index]][[index2]]/(sum(split_index == 
+                index))
+            gradient[[index]][[index2]] <- gradient[[index]][[index2]]/sum(split_index == 
+                index)
+        }
+    }
+    return(list(hessian = hessian, gradient = gradient, coef_estimate = coef_estimate, 
+        V_estimate = hessian, number_split = number_split, split_index = split_index))
+}
+
+[[4]]$visible
+[1] FALSE
+
+
+[[5]]
+[[5]]$value
+function (coef_candidate, X, Y, split_index, max.dim, nfold, 
+    lambda) 
+{
+    which_min <- error.min <- array(0, c(max.dim, 1))
+    for (dim in 1:max.dim) {
+        error <- array(0, c(nfold, length(lambda)))
+        for (fold in 1:nfold) {
+            coef <- coef_candidate[[dim]][[fold]]
+            error[fold, ] <- apply(coef, 2, function(beta) {
+                if (dim > 1) {
+                  coef <- array(0, dim = c(NCOL(X), dim))
+                  coef[1:dim, ] <- pracma::eye(dim)
+                  coef[-(1:dim), ] <- matrix(beta, nrow = NCOL(X) - 
+                    dim, ncol = dim)
+                }
+                else {
+                  coef <- c(1, c(beta))
+                }
+                link <- X %*% coef
+                f.bw <- np::npregbw(xdat = link[split_index == 
+                  fold, , drop = FALSE], ydat = Y[split_index == 
+                  fold], newdata = link)
+                f_fit <- np::npreg(f.bw, exdat = link, gradients = FALSE)
+                mean((Y[split_index != fold] - f_fit$mean[split_index != 
+                  fold])^2)
+            })
+        }
+        error_aggre <- apply(error, 2, mean)
+        which_min[dim] <- which.min(error_aggre)
+        error.min[dim] <- min(error_aggre)
+    }
+    dim.opt <- which.min(error.min)
+    lambda.opt <- which_min[dim.opt]
+    return(list(dim.opt = dim.opt, lambda.opt = lambda.opt, error = error_aggre))
+}
+
+[[5]]$visible
+[1] FALSE
+
+
+[[6]]
+[[6]]$value
+function (X, Y, Y_given_X, split_index = NULL, number_split = 2, 
+    grid, bandwidth_scale = 1, method = "ks") 
+{
+    sample_size <- length(Y)
+    if (is.null(split_index)) {
+        split_index <- sample(1:number_split, sample_size, replace = TRUE)
+    }
+    else {
+        number_split <- length(unique(split_index))
+    }
+    gradient <- hessian <- NULL
+    for (index in 1:number_split) {
+        gradient[[index]] <- get_gradient_nonpar_gradient(Y[split_index == 
+            index], X[split_index == index, ], Y_given_X, grid, 
+            bandwidth_scale = bandwidth_scale, method = method)
+        hessian[[index]] <- get_hessian_nonpar_gradient(X[split_index == 
+            index], grid, bandwidth_scale = bandwidth_scale)
+    }
+    return(list(hessian = hessian, gradient = gradient))
+}
+
+[[6]]$visible
+[1] FALSE
+
+
+[[7]]
+[[7]]$value
+function (X, Y, split_index = NULL, number_split = 2, grid, bandwidth_scale = 1, 
+    method = "ks") 
+{
+    sample_size <- length(Y)
+    if (is.null(split_index)) {
+        split_index <- sample(1:number_split, sample_size, replace = TRUE)
+    }
+    else {
+        number_split <- length(unique(split_index))
+    }
+    gradient <- hessian <- NULL
+    for (index in 1:number_split) {
+        gradient[[index]] <- get_gradient_nonpar(Y[split_index == 
+            index], X[split_index == index, ], grid, bandwidth_scale = bandwidth_scale, 
+            method = method)
+        hessian[[index]] <- get_hessian_nonpar(X[split_index == 
+            index, ], grid, bandwidth_scale = bandwidth_scale)
+    }
+    return(list(hessian = hessian, gradient = gradient))
+}
+
+[[7]]$visible
+[1] FALSE
+
+
+[[8]]
+[[8]]$value
+function (data, r = 3, nbasis = 5, lr = 0.01, max_iter = 200, 
+    C1 = 0.001, C2 = 0.001, info = FALSE, tol = 0.001, link = c("linear", 
+        "logistic"), X_test = NULL, X_test_list = NULL) 
+{
+    link <- match.arg(link)
+    stopifnot(requireNamespace("torch", quietly = TRUE))
+    Ttasks <- length(data)
+    n_vec <- vapply(data, function(d) nrow(d$X), numeric(1))
+    p <- ncol(data[[1]]$X)
+    n_tot <- sum(n_vec)
+    if (!is.null(nbasis) && nbasis > 1) {
+        spline_funs <- build_spline_funs_from_tasks(data, df = nbasis, 
+            degree = 3, intercept = TRUE)
+        data <- expand_tasks_with_spline(data, spline_funs)
+    }
+    X <- do.call(rbind, lapply(data, function(d) d$X))
+    y <- unlist(lapply(data, function(d) d$y))
+    idx_ranges <- split(seq_len(n_tot), rep(seq_len(Ttasks), 
+        times = n_vec))
+    X_t <- torch::torch_tensor(X, dtype = torch::torch_float64())
+    y_t <- torch::torch_tensor(y, dtype = torch::torch_float64())
+    A_hat_arr <- array(0, dim = c(Ttasks, p * nbasis, r))
+    for (t in 1:Ttasks) {
+        tmp <- matrix(rnorm(p * nbasis * r, mean = 0, sd = 1), 
+            nrow = p * nbasis, ncol = r)
+        A_hat_arr[t, , ] <- qr.Q(qr(tmp))[, 1:r, drop = FALSE]
+    }
+    A_hat <- torch::torch_tensor(A_hat_arr, requires_grad = TRUE, 
+        dtype = torch::torch_float64())
+    A_bar_mat <- matrix(rnorm(p * nbasis * r, mean = 0, sd = 1), 
+        nrow = p * nbasis, ncol = r)
+    A_bar_mat <- qr.Q(qr(A_bar_mat))[, 1:r, drop = FALSE]
+    A_bar <- torch::torch_tensor(A_bar_mat, requires_grad = TRUE, 
+        dtype = torch::torch_float64())
+    theta <- torch::torch_randn(c(r, Ttasks), dtype = torch::torch_float64())
+    theta <- theta/(torch::torch_norm(theta, dim = 1, keepdim = TRUE) + 
+        1e-08)
+    theta$requires_grad_(TRUE)
+    proj_mat <- function(A) {
+        At <- A$transpose(-2, -1)
+        Inv <- torch::torch_inverse(torch::torch_matmul(At, A))
+        torch::torch_matmul(A, torch::torch_matmul(Inv, At))
+    }
+    spectral_norm <- function(M) {
+        dims <- M$size()
+        if (length(dims) == 0) {
+            return(torch::torch_abs(M))
+        }
+        if (length(dims) == 1) {
+            return(torch::torch_norm(M, p = 2))
+        }
+        if (length(dims) == 2 && as.integer(dims[1]) == 1L && 
+            as.integer(dims[2]) == 1L) {
+            return(torch::torch_abs(M)$squeeze())
+        }
+        sv <- torch::torch_svd(M, compute_uv = FALSE)
+        torch::torch_max(sv[[2]])
+    }
+    lam <- sqrt(r * p + log(Ttasks)) * C1
+    loss_step1 <- function(A_hat, theta, A_bar) {
+        s <- torch::torch_tensor(0, dtype = torch::torch_float64())
+        for (t in seq_len(Ttasks)) {
+            rr_idx <- torch::torch_tensor(idx_ranges[[t]], dtype = torch::torch_int64())
+            Xt <- X_t$index_select(1, rr_idx)
+            yt <- y_t$index_select(1, rr_idx)
+            At <- A_hat[t, , ]
+            th <- theta[, t]
+            lin <- torch::torch_matmul(Xt, torch::torch_matmul(At, 
+                th))
+            if (link == "linear") {
+                resid <- yt - lin
+                data_term <- 0.5/n_tot * torch::torch_dot(resid, 
+                  resid)
+            }
+            else {
+                data_term <- 1/n_tot * (torch::torch_sum(torch::nnf_softplus(lin)) - 
+                  torch::torch_dot(yt, lin))
+            }
+            Pt <- proj_mat(At)
+            Pbar <- proj_mat(A_bar)
+            if (ncol(Pt) == 1) {
+                pen <- lam/sqrt(n_tot) * spectral_norm(Pt - Pbar) * 
+                  0
+            }
+            else {
+                pen <- lam/sqrt(n_tot) * spectral_norm(Pt - Pbar)
+            }
+            s <- s + data_term + pen
+        }
+        s
+    }
+    opt1 <- torch::optim_adam(list(A_hat, A_bar, theta), lr = lr)
+    loss_prev <- Inf
+    for (i in seq_len(max_iter)) {
+        opt1$zero_grad()
+        l <- loss_step1(A_hat, theta, A_bar)
+        l$backward()
+        opt1$step()
+        li <- as.numeric(l$item())
+        if (info && i%%100 == 0) 
+            cat("Step1 pERM", i, "loss =", li, "\n")
+        if (abs(loss_prev - li)/max(1e-12, li) <= tol) {
+            if (info) 
+                cat("Step 1 converged.\n")
+            break
+        }
+        loss_prev <- li
+    }
+    beta1 <- matrix(0, p * nbasis, Ttasks)
+    for (t in seq_len(Ttasks)) {
+        At_det <- A_hat[t, , ]$detach()
+        th_det <- theta[, t]$detach()
+        beta1[, t] <- as.numeric(torch::torch_matmul(At_det, 
+            th_det)$cpu())
+    }
+    if (info) 
+        cat("Step 1 completed.\n")
+    gamma <- sqrt(p * nbasis + log(Ttasks)) * C2
+    beta <- torch::torch_full(c(p * nbasis, Ttasks), fill_value = 2, 
+        requires_grad = TRUE, dtype = torch::torch_float64())
+    loss_step2 <- function(beta) {
+        s <- torch::torch_tensor(0, dtype = torch::torch_float64())
+        beta1_t <- torch::torch_tensor(beta1, dtype = torch::torch_float64())
+        for (t in seq_len(Ttasks)) {
+            rr_idx <- torch::torch_tensor(idx_ranges[[t]], dtype = torch::torch_int64())
+            Xt <- X_t$index_select(1, rr_idx)
+            yt <- y_t$index_select(1, rr_idx)
+            bt <- beta[, t]
+            lin <- torch::torch_matmul(Xt, bt)
+            if (link == "linear") {
+                resid <- yt - lin
+                data_term <- 0.5/n_vec[t] * torch::torch_dot(resid, 
+                  resid)
+            }
+            else {
+                data_term <- 1/n_vec[t] * (torch::torch_sum(torch::nnf_softplus(lin)) - 
+                  torch::torch_dot(yt, lin))
+            }
+            reg <- gamma/sqrt(n_vec[t]) * torch::torch_norm(bt - 
+                beta1_t[, t])
+            s <- s + data_term + reg
+        }
+        s
+    }
+    opt2 <- torch::optim_adam(list(beta), lr = lr)
+    loss_prev <- Inf
+    for (i in seq_len(max_iter)) {
+        opt2$zero_grad()
+        l2 <- loss_step2(beta)
+        l2$backward()
+        opt2$step()
+        li <- as.numeric(l2$item())
+        if (info && i%%100 == 0) 
+            cat("Step2 pERM", i, "loss =", li, "\n")
+        if (abs(loss_prev - li)/max(1e-12, li) <= tol) {
+            if (info) 
+                cat("Step 1 converged.\n")
+            break
+        }
+        loss_prev <- li
+    }
+    beta2 <- as.matrix(beta$detach()$cpu())
+    if (info) 
+        cat("Step 2 completed.\n")
+    train_preds <- vector("list", length = Ttasks)
+    for (t in seq_len(Ttasks)) {
+        X_task <- data[[t]]$X
+        train_preds[[t]] <- drop(X_task %*% beta2[, t])
+        if (link == "logistic") {
+            train_preds[[t]] <- 1/(1 + exp(-train_preds[[t]]))
+        }
+    }
+    if (!is.null(X_test)) {
+        X_test_exp <- if (!is.null(nbasis) && nbasis > 1) 
+            expand_with_spline_funs(X_test, spline_funs)
+        else X_test
+        test_preds <- vector("list", length = Ttasks)
+        for (t in seq_len(Ttasks)) {
+            test_preds[[t]] <- drop(X_test_exp %*% beta2[, t])
+            if (link == "logistic") {
+                test_preds[[t]] <- 1/(1 + exp(-test_preds[[t]]))
+            }
+        }
+        return(list(step1 = beta1, step2 = beta2, A_bar = as.matrix(A_bar$detach()$cpu()), 
+            train_preds = train_preds, test_preds = test_preds))
+    }
+    if (!is.null(X_test_list)) {
+        X_test_exp <- if (!is.null(nbasis) && nbasis > 1) 
+            lapply(X_test_list, function(X) expand_with_spline_funs(X, 
+                spline_funs))
+        else X_test_list
+        test_preds <- vector("list", length = Ttasks)
+        for (t in seq_len(Ttasks)) {
+            test_preds[[t]] <- drop(X_test_exp[[t]] %*% beta2[, 
+                t])
+            if (link == "logistic") {
+                test_preds[[t]] <- 1/(1 + exp(-test_preds[[t]]))
+            }
+        }
+        return(list(step1 = beta1, step2 = beta2, A_bar = as.matrix(A_bar$detach()$cpu()), 
+            train_preds = train_preds, test_preds = test_preds))
+    }
+    list(step1 = beta1, step2 = beta2, A_bar = as.matrix(A_bar$detach()$cpu()), 
+        train_preds = train_preds)
+}
+
+[[8]]$visible
+[1] FALSE
+
+
+[[9]]
+[[9]]$value
+function (X, D, Y, split_index = NULL, number_split = 2, nonpar_transfer = FALSE, 
+    D_given_X = NULL, Y_given_X = NULL) 
+{
+    sample_size <- length(Y)
+    if (is.null(split_index)) {
+        split_index <- sample(1:number_split, sample_size, replace = TRUE)
+    }
+    else {
+        number_split <- length(unique(split_index))
+    }
+    if (!nonpar_transfer) {
+        D_given_X <- Y_given_X <- rep(0, times = sample_size)
+        for (index in 1:number_split) {
+            D_given_X[split_index == index] <- ks(X[split_index != 
+                index, ], D[split_index != index], X[split_index == 
+                index, ])
+            Y_given_X[split_index == index] <- ks(X[split_index != 
+                index, ], Y[split_index != index], X[split_index == 
+                index, ])
+        }
+    }
+    Y_residual <- Y - Y_given_X
+    D_residual <- D - D_given_X
+    coef_estimate <- rep(0, times = number_split)
+    V_estimate <- rep(0, times = number_split)
+    fit <- NULL
+    for (index in 1:number_split) {
+        fit[[index]] <- lm(Y_residual[split_index == index] ~ 
+            0 + D_residual[split_index == index])
+        coef_estimate[index] <- fit[[index]]$coefficients
+        V_estimate[index] <- mean(D_residual[split_index == index] * 
+            D[split_index == index])
+    }
+    return(list(hessian = V_estimate, gradient = c(0, 0), coef_estimate = coef_estimate, 
+        V_estimate = V_estimate, number_split = number_split, 
+        split_index = split_index, Y_given_X = Y_given_X, D_given_X = D_given_X, 
+        Y_residual = Y_residual, D_residual = D_residual))
+}
+
+[[9]]$visible
+[1] FALSE
+
+
+[[10]]
+[[10]]$value
+function (coef_candidate, X, D, Y, Y_given_X = NULL, D_given_X = NULL, 
+    split_index, nfold, lambda, nonpar_transfer = FALSE) 
+{
+    which_min <- error.min <- 0
+    error <- array(0, c(nfold, length(lambda)))
+    for (fold in 1:nfold) {
+        coef <- coef_candidate[[fold]]
+        if (!nonpar_transfer) {
+            D_given_X <- ks(X[split_index == fold, ], D[split_index == 
+                fold], X)
+            Y_given_X <- ks(X[split_index == fold, ], Y[split_index == 
+                fold], X)
+        }
+        error[fold, ] <- sapply(coef, function(beta) {
+            mean((Y[split_index != fold] - Y_given_X[split_index != 
+                fold] - beta * (D[split_index != fold] - D_given_X[split_index != 
+                fold]))^2)
+        })
+    }
+    error_aggre <- apply(error, 2, mean)
+    which_min <- which.min(error_aggre)
+    error.min <- min(error_aggre)
+    lambda.opt <- which_min
+    return(list(lambda.opt = lambda.opt, coef.opt = (coef_candidate[[1]][lambda.opt] + 
+        coef_candidate[[2]][lambda.opt])/2, error = error_aggre))
+}
+
+[[10]]$visible
+[1] FALSE
+
+
+[[11]]
+[[11]]$value
+function (X, D, Y, effect, target_indx = 1, method = "CATE") 
+{
+    ntask <- length(X)
+    if (method == "CATE") {
+        X_list <- lapply(X[-target_indx], function(x) as.matrix(x))
+    }
+    else {
+        X_list <- lapply(D[-target_indx], function(d) matrix(d, 
+            ncol = 1))
+    }
+    Z_list <- X[-target_indx]
+    y_list <- lapply(Y[-target_indx], function(y) matrix(y, ncol = 1))
+    if (method == "CATE") {
+        X0 <- as.matrix(X[[target_indx]])
+    }
+    else {
+        X0 <- matrix(D[[target_indx]], ncol = 1)
+    }
+    Z0 <- X[[target_indx]]
+    y0 <- matrix(Y[[target_indx]], ncol = 1)
+    list(X_list = X_list, Z_list = Z_list, y_list = y_list, X0 = X0, 
+        Z0 = Z0, y0 = y0, beta0 = effect[[target_indx]])
+}
+
+[[11]]$visible
+[1] FALSE
+
+
+[[12]]
+[[12]]$value
+function (gradient, hessian, lambda = NULL, gradient.fit = TRUE) 
+{
+    ntask <- NCOL(hessian)
+    nxtest <- NROW(hessian)
+    G <- rep(0, times = nxtest * (ntask + 1))
+    H <- Matrix::Matrix(0, nrow = nxtest * (ntask + 1), ncol = nxtest * 
+        (ntask + 1), sparse = TRUE)
+    for (index in 1:ntask) {
+        H[((index - 1) * nxtest + 1):(index * nxtest), ((index - 
+            1) * nxtest + 1):(index * nxtest)] <- diag(c(hessian[, 
+            index]))
+        H[((index - 1) * nxtest + 1):(index * nxtest), (ntask * 
+            nxtest + 1):((ntask + 1) * nxtest)] <- diag(c(hessian[, 
+            index]))
+        H[(ntask * nxtest + 1):((ntask + 1) * nxtest), ((index - 
+            1) * nxtest + 1):(index * nxtest)] <- diag(c(hessian[, 
+            index]))
+        G[((index - 1) * nxtest + 1):(index * nxtest)] <- c(gradient[, 
+            index])
+    }
+    H[(ntask * nxtest + 1):((ntask + 1) * nxtest), (ntask * nxtest + 
+        1):((ntask + 1) * nxtest)] <- diag(c(apply(hessian, 1, 
+        sum)))
+    G[(ntask * nxtest + 1):((ntask + 1) * nxtest)] <- c(apply(gradient, 
+        1, sum))
+    svd_h <- svd(H)
+    h_root <- svd_h$v %*% diag(sqrt(svd_h$d)) %*% t(svd_h$v)
+    pseudo_x <- -h_root
+    pseudo_y <- as.vector(svd_h$v %*% diag(1/sqrt(svd_h$d)) %*% 
+        t(svd_h$v) %*% G)
+    index <- rep(1:(ntask + 1), each = nxtest)
+    pf <- c(rep(1, ntask), 0)
+    fit <- gglasso::gglasso(x = pseudo_x, y = pseudo_y, group = index, 
+        lambda = lambda, pf = pf, intercept = FALSE)
+    pred <- array(0, c(nxtest, ntask, length(fit$lambda)))
+    for (index1 in 1:ntask) {
+        for (index2 in 1:length(fit$lambda)) {
+            pred[, index1, index2] <- fit$beta[((index1 - 1) * 
+                nxtest + 1):(index1 * nxtest), index2] + fit$beta[(ntask * 
+                nxtest + 1):((ntask + 1) * nxtest), index2]
+        }
+    }
+    list(fit = fit, lambda = fit$lambda, pred = pred)
+}
+
+[[12]]$visible
+[1] FALSE
+
+
+[[13]]
+[[13]]$value
+function (gradient, hessian, initial_value, type = c("DR", "PLM", 
+    "ATE"), lambda = NULL) 
+{
+    ncoef <- length(initial_value[[1]])
+    ntask <- length(initial_value)
+    I <- cbind(diag(ncoef * ntask), pracma::repmat(diag(ncoef), 
+        ntask, 1))
+    G <- Initial_value <- rep(0, ncoef * ntask)
+    H <- Matrix::Matrix(0, nrow = ncoef * ntask, ncol = ncoef * 
+        ntask, sparse = TRUE)
+    for (index in 1:ntask) {
+        G[((index - 1) * ncoef + 1):(index * ncoef)] <- gradient[[index]]
+        H[((index - 1) * ncoef + 1):(index * ncoef), ((index - 
+            1) * ncoef + 1):(index * ncoef)] <- hessian[[index]]
+        Initial_value[((index - 1) * ncoef + 1):(index * ncoef)] <- initial_value[[index]]
+    }
+    svd_h <- svd(H)
+    h_root <- svd_h$v %*% diag(sqrt(svd_h$d)) %*% t(svd_h$v)
+    pseudo_x <- h_root %*% I
+    pseudo_y <- as.vector(h_root %*% Initial_value - svd_h$v %*% 
+        diag(1/sqrt(svd_h$d)) %*% t(svd_h$v) %*% G)
+    index <- c(rep(1:(ntask + 1), each = ncoef))
+    pf <- c(rep(1, ntask), 0)
+    fit <- gglasso::cv.gglasso(x = pseudo_x, y = pseudo_y, group = index, 
+        lambda = lambda, pf = pf, intercept = FALSE)
+    coef <- array(0, dim = c(ncoef, ntask))
+    for (index in 1:ntask) {
+        coef[, index] <- fit$gglasso.fit$beta[((index - 1) * 
+            ncoef + 1):(index * ncoef), which(fit$lambda == fit$lambda.min)] + 
+            fit$gglasso.fit$beta[(ntask * ncoef + 1):((ntask + 
+                1) * ncoef), which(fit$lambda == fit$lambda.min)]
+    }
+    list(fit = fit, lambda = fit$lambda, coef = coef)
+}
+
+[[13]]$visible
+[1] FALSE
+
+
+[[14]]
+[[14]]$value
+function (f.value, split_index) 
+{
+    number_of_split <- length(unique(split_index))
+    f.value.transformed <- list()
+    for (index in 1:number_of_split) {
+        f.value.transformed[[index]] <- list(f.value)
+    }
+    f.value.transformed
+}
+
+[[14]]$visible
+[1] FALSE
+
+
+Loading required package: Matrix
+Loaded glmnet 4.1-10
+Number of cores used: 128 
+The dim is 8 
+1 200 0.7 8The dim is 8 
+Start the simulation for seed  1 n 200 similarity 0.7[1] 2.220615 1.925286 1.845614 2.054772 1.966171
+[1] 2.319918 1.940860 1.906255 2.084242 1.929408
+[1] 2.423005 2.011586 1.838908 2.072653 1.878364
+[1] 2.556475 1.960518 1.945786 2.224332 1.950861
+[1] 2.417983 1.972641 1.849857 2.051136 1.985545
+[1] 2.277881 1.973336 1.875682 1.998310 1.970999
+[1] 2.382162 1.950897 1.913106 2.083990 2.088801
+[1] 3.113369 2.018395 1.878555 2.028746 2.015634
+[1] 2.427454 2.116458 1.848735 2.061333 2.069951
+[1] 2.091680 1.994205 1.666730 2.073073 1.880108
+[1] 2.677248 1.884318 1.845901 2.212336 1.985633
+[1] 2.290192 1.833499 1.908158 2.048907 1.991695
+[1] 2.316246 2.033766 1.858009 2.004312 1.973806
+[1] 2.343481 1.943917 1.867204 2.149021 1.977348
+[1] 2.265395 2.044098 1.858921 1.957042 1.927345
+[1] 2.800451 1.875143 2.013703 2.114920 1.932710
+[1] 2.547961 1.938219 2.030608 2.081669 1.980619
+[1] 2.065410 1.977651 1.988698 2.174064 1.984125
+[1] 2.477713 1.936998 1.901656 2.233756 1.979006
+[1] 2.335257 1.852955 1.910371 2.014468 2.003341
+[1] 2.515150 1.975403 1.974088 2.060638 1.940351
+[1] 2.438215 1.944795 1.938965 2.035807 1.974650
+[1] 2.584621 2.091192 1.880509 2.145037 1.924034
+[1] 2.256764 1.914316 2.058013 2.049693 2.002730
+[1] 2.368250 2.015197 2.047169 2.154605 1.941363
+[1] 2.224140 1.982158 1.868333 2.084223 1.990288
+[1] 2.134873 1.995529 1.902546 2.094371 1.990025
+[1] 2.432288 2.071696 1.868067 2.107439 1.956347
+[1] 2.450390 1.999302 1.785456 2.185847 1.898702
+[1] 2.354394 2.055751 1.763830 2.208626 2.091848
+[1] 2.410565 2.006748 1.906426 2.120834 1.911779
+[1] 2.125581 2.054931 2.019194 2.289476 1.949914
+[1] 2.481662 1.983605 1.976452 1.953894 2.031587
+[1] 1.952843 2.021471 1.822439 2.303014 1.958460
+[1] 2.531077 2.054521 1.958925 2.151650 1.967737
+[1] 3.036796 2.087074 2.126812 2.247652 1.948580
+[1] 2.688449 1.949518 1.916810 2.188834 1.934096
+[1] 2.540719 1.963414 1.838878 2.154978 1.872218
+[1] 2.499064 2.095451 1.913165 2.078249 2.072481
+[1] 2.372809 1.979651 1.969569 2.090384 1.956716
+[1] 2.268628 1.941829 2.007253 2.320323 1.856694
+[1] 2.777251 2.074718 1.866169 2.236798 1.915633
+[1] 2.757986 1.936850 2.025842 2.187743 1.978056
+[1] 2.380668 1.996301 1.930991 2.187995 1.865537
+[1] 2.877115 2.028891 1.947571 2.172693 1.932652
+[1] 2.340522 1.921027 1.848839 2.059189 2.012224
+[1] 2.866106 1.923284 1.845781 2.110113 1.876396
+[1] 2.183487 1.987962 2.029179 2.055054 1.926399
+[1] 2.215311 1.943217 1.872990 2.180481 1.997195
+[1] 2.621080 1.893323 1.603566 2.173733 1.893053
+[1] 2.231653 2.043571 1.819293 2.076797 1.914729
+[1] 2.861988 2.014361 1.955931 2.160752 1.971176
+[1] 2.344414 1.912976 1.838830 2.174750 1.907134
+[1] 2.436122 1.921991 1.998825 2.146568 1.954012
+[1] 2.091437 1.981828 1.757634 2.049321 1.987079
+[1] 2.281718 1.989044 1.971450 2.083689 1.928450
+[1] 2.483540 1.988335 1.799993 2.080151 1.883983
+[1] 2.198527 1.790614 1.932974 2.128899 2.053350
+[1] 2.330806 1.974730 1.896794 2.170707 2.066827
+[1] 2.410332 2.060184 1.922807 2.073136 1.937947
+[1] 2.727519 1.993419 1.956518 2.168951 1.918567
+[1] 2.277954 1.921950 1.766791 2.033527 1.938556
+[1] 2.507878 2.065216 2.085613 2.122963 1.948553
+[1] 2.611171 1.941751 2.016768 2.015510 1.855880
+[1] 2.345686 1.937355 2.067716 2.069755 1.896201
+[1] 2.628191 1.871817 1.881313 2.109269 1.918553
+[1] 2.446173 2.010003 1.901095 2.209528 1.968583
+[1] 2.566293 2.030572 1.915588 2.094522 2.024665
+[1] 2.334375 2.074532 1.955907 1.992373 1.945481
+[1] 2.482136 1.924169 1.914988 2.121133 1.940945
+[1] 2.514051 2.018847 1.768097 1.846985 2.003121
+[1] 2.092313 1.952789 1.978667 2.181406 2.004442
+[1] 2.214752 1.961769 1.975338 2.012445 1.959739
+[1] 3.014608 2.080457 1.890858 2.209437 1.920468
+[1] 2.110579 1.992214 2.131176 2.093012 1.967679
+[1] 2.256141 1.899775 1.849195 2.035719 1.866567
+[1] 2.499179 2.098470 1.867126 2.067299 2.003263
+[1] 2.517944 1.965564 1.782694 2.075582 1.920722
+[1] 2.328972 1.948618 1.798356 2.054079 1.870982
+[1] 2.792947 1.936184 1.764074 2.079789 1.978942
+[1] 2.939360 2.029998 1.980476 2.072351 1.968886
+[1] 2.325786 1.976642 1.921024 2.069712 2.059181
+[1] 2.374569 2.040853 1.724936 1.991519 1.956763
+[1] 2.384979 2.071896 1.890512 2.080003 2.020497
+[1] 2.537901 1.822506 1.839492 2.126966 2.028348
+[1] 2.514180 1.924993 1.777235 2.090735 2.018259
+[1] 2.461878 2.076318 1.853973 2.092741 2.034943
+[1] 2.365378 1.963770 1.898478 1.885509 2.091065
+[1] 2.620867 2.013867 1.871597 2.140779 1.985732
+[1] 2.530364 2.023245 2.080218 1.934854 1.899173
+[1] 2.719780 2.090231 2.000612 1.861760 1.954324
+[1] 2.833859 1.976753 1.988220 2.030666 2.015645
+[1] 2.438551 2.240801 1.890893 2.134367 2.012956
+[1] 2.231681 1.950871 1.730284 2.138856 1.946893
+[1] 2.201615 1.833481 1.704804 2.140554 1.930415
+[1] 2.874350 2.174413 1.919216 2.068726 1.831656
+[1] 2.487650 1.889293 1.862665 2.002612 2.044284
+[1] 2.138236 1.895657 1.898162 1.985790 1.898439
+[1] 2.269622 1.978579 1.774396 2.023823 2.015238
+[1] 2.585413 2.040125 1.982449 2.209074 1.976598
+[1] 2.336410 1.956524 1.802484 2.174548 1.992737
+[1] 2.373585 1.999968 1.899155 2.162183 1.866501
+[1] 2.292669 2.017932 2.000523 2.138158 1.964517
+[1] 2.733799 1.885240 1.752639 2.207527 1.918358
+[1] 2.393209 1.984331 1.873899 2.092346 1.916435
+[1] 2.278238 1.976485 1.857355 2.119517 1.914252
+[1] 2.142425 2.042571 1.827030 2.072513 1.876959
+[1] 2.551382 2.038781 1.932613 2.182521 1.952780
+[1] 2.411865 1.897239 2.106904 2.126469 2.031093
+[1] 2.273373 1.892680 1.798637 2.121240 1.957881
+[1] 3.091807 2.124982 2.019212 2.081879 2.021305
+[1] 2.321658 2.042408 1.986428 2.182777 1.835413
+[1] 3.114947 1.972043 1.903603 2.120162 1.916566
+[1] 2.770356 1.902832 1.798699 2.112491 2.041097
+[1] 2.529490 1.976993 1.852549 2.037924 2.092651
+[1] 3.104420 1.933518 1.769334 2.277290 1.890192
+[1] 2.454438 1.957954 1.860143 2.062096 1.900467
+[1] 2.273682 2.131186 2.016970 2.118513 2.003688
+[1] 2.392364 1.829673 1.817816 2.091632 2.018227
+[1] 2.297915 2.068868 1.904577 1.986819 1.980626
+[1] 2.411730 1.931715 1.962238 1.999234 1.919604
+[1] 2.322808 2.045951 1.800833 2.216759 2.004804
+[1] 2.694585 2.106964 2.047712 2.221008 2.048594
+[1] 2.879938 1.911153 1.863139 2.142168 1.831369
+[1] 2.193767 1.852675 2.002749 2.086799 1.970762
+[1] 2.432321 1.881036 2.074795 2.140436 1.954383
+[1] 2.664311 1.873486 2.069081 2.017779 1.825938
+[1] 2.246410 1.979336 1.926022 2.130806 1.967434
+[1] 2.543102 1.975681 2.072034 2.035385 1.963751
+[1] 2.230418 2.142978 1.860814 2.157120 2.003109
+[1] 2.210443 2.091855 1.966454 2.163624 1.877492
+[1] 2.539102 1.976923 1.966913 2.009227 2.077993
+[1] 2.542390 1.902255 1.766598 2.256206 1.979653
+[1] 2.783147 2.066954 2.005835 2.063474 2.000628
+[1] 2.931188 1.944482 1.827977 2.047119 2.053149
+[1] 2.453067 1.899862 1.986353 2.247994 2.016970
+[1] 2.639231 2.038594 2.029362 2.086895 1.943775
+[1] 2.410920 1.972328 1.985065 2.136099 2.005894
+[1] 2.399849 2.001935 2.015762 1.908893 1.969460
+[1] 2.519181 2.008726 1.958251 2.131900 2.046763
+[1] 2.329970 2.043896 1.940422 2.222479 1.982980
+[1] 2.615951 2.102196 1.936788 2.246544 2.045908
+[1] 2.348780 1.920516 1.851212 2.193843 1.949154
+[1] 2.265268 2.065940 1.853555 2.184423 1.971597
+[1] 2.247727 1.957570 2.005900 2.150942 1.905266
+[1] 2.368243 1.950372 1.967202 2.144833 1.910298
+[1] 2.193276 2.022049 1.978517 2.071818 1.967462
+[1] 2.265612 1.954110 1.733483 1.961700 2.041686
+[1] 2.635066 1.985016 1.961680 2.124617 1.985951
+[1] 2.212330 2.018588 1.908735 2.016480 1.893582
+[1] 2.339170 1.925635 1.858325 2.054490 1.897561
+[1] 2.448058 2.065180 2.075307 1.944015 1.978297
+[1] 2.793983 2.045826 1.890506 2.098155 2.000238
+[1] 2.438710 2.015389 1.924293 2.201113 2.006730
+[1] 2.367454 1.947926 1.855028 2.091615 1.965095
+[1] 2.532793 2.028247 1.793133 2.063726 1.919640
+[1] 2.541090 1.956182 1.806716 2.225738 1.886303
+[1] 2.148274 1.870930 2.043291 2.159233 1.915588
+[1] 2.298884 2.021647 1.927325 2.187512 1.929274
+[1] 2.507806 2.069776 1.903800 2.113949 1.929142
+[1] 2.415610 1.910925 1.838682 1.987085 1.882897
+[1] 2.522754 2.154974 1.748348 2.135401 2.047539
+[1] 2.440739 2.113447 1.981385 2.256453 1.920232
+[1] 2.439947 2.006181 1.899676 2.201082 1.954111
+[1] 2.626813 2.085577 1.750616 2.114485 1.977301
+[1] 2.528673 1.990580 1.880137 2.067356 1.918733
+[1] 2.669190 2.085340 1.998298 2.081063 1.947627
+[1] 2.462254 2.026428 1.986195 2.136236 1.988230
+[1] 2.489548 2.271252 1.814836 2.158410 1.857974
+[1] 3.014727 2.036919 1.920266 2.103528 1.965144
+[1] 2.117007 1.880903 1.985799 2.146463 1.948830
+[1] 2.943489 1.980849 1.825801 2.068238 1.965586
+[1] 2.564548 2.059774 1.904271 2.148150 1.848817
+[1] 2.244994 2.002212 1.908513 2.019790 2.003555
+[1] 2.300412 1.941928 1.777392 2.139711 1.934130
+[1] 2.791381 1.916049 1.881942 2.190685 2.115141
+[1] 2.399730 1.995013 1.835788 2.043646 2.027636
+[1] 2.321951 1.954699 1.939707 2.144459 1.949139
+[1] 2.367854 2.020752 1.986413 1.962233 1.919557
+[1] 2.365226 2.117315 1.788631 2.108957 1.875683
+[1] 2.509816 1.958697 1.896818 2.045090 1.956134
+[1] 2.529518 1.948828 1.789605 2.041315 1.993116
+[1] 2.456329 2.209189 1.921859 2.212708 1.993827
+[1] 2.389503 2.199469 1.788152 1.978055 1.927001
+[1] 2.287729 1.983593 1.943923 2.056182 1.919878
+[1] 2.198307 1.990367 1.975602 1.975033 1.969376
+[1] 2.278373 2.021494 1.887691 2.226464 2.028033
+[1] 3.152794 2.197099 1.739284 2.153457 1.953265
+[1] 2.336347 1.968264 1.951571 1.930793 1.975935
+[1] 2.582645 1.996974 1.869521 2.162573 1.962670
+[1] 2.382224 1.962636 2.119308 2.066301 1.963881
+[1] 2.258600 1.891481 1.787508 2.303854 2.019944
+[1] 2.317399 1.951154 1.974031 2.108505 1.881249
+[1] 2.346251 2.011620 1.878701 2.094943 1.979801
+[1] 2.274613 1.890652 1.893463 2.055134 1.909058
+[1] 2.690248 1.985630 1.983096 2.081549 2.025084
+[1] 2.294881 1.849929 1.761249 2.183626 1.962953
+[1] 2.556132 1.939195 1.943664 1.998802 1.963685
+[1] 2.454986 1.935768 1.849829 2.037933 1.937683
+[1] 2.329490 1.987633 1.815342 2.149448 2.003337
+[1] 2.414094 2.059412 2.070482 2.123397 1.877770
+[1] 2.858109 1.928424 2.039139 2.116405 1.966306
+[1] 2.247629 2.057342 1.798142 2.079223 1.935516
+[1] 2.511840 2.064870 1.989336 1.858827 2.003362
+[1] 2.328098 1.863859 2.021731 1.902894 1.971767
+[1] 2.386849 1.980736 1.853276 2.219993 2.107311
+[1] 2.415949 2.069876 2.051190 2.071685 1.900825
+[1] 2.581236 2.081216 1.979898 2.103372 1.979123
+[1] 2.511612 2.006361 1.856341 2.174755 2.042411
+[1] 2.378075 1.963596 1.882259 2.220835 1.922288
+[1] 2.346136 2.104933 1.866884 2.001573 1.877649
+[1] 2.762503 1.983604 1.783747 2.130304 2.055126

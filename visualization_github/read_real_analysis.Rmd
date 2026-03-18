@@ -1,0 +1,642 @@
+---
+title: "read_results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+format_list_to_df <- function(eval_list) {
+  # Initialize an empty data frame
+  result_df <- data.frame(
+    Model = character(),
+    Subgroup = integer(),
+    MSE = numeric(),
+    Value_Function = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (model_name in names(eval_list)[1:9]) {
+    for (i in seq_along(eval_list[[model_name]])) {
+      if(model_name == "eval_pool"){ mse_list <- eval_list[[model_name]]$mse[[1]]
+       value_list <- eval_list[[model_name]]$mse[[1]]}else{
+      mse_list <- eval_list[[model_name]][[1]]$mse
+       value_list <- eval_list[[model_name]][[1]]$value_function
+      }
+     
+      for (j in seq_along(mse_list)) {
+        mse_value <- mse_list[[j]][[1]]
+        value_function_value <- value_list[[j]][[1]]
+        
+        result_df <- rbind(result_df, data.frame(
+          Model = model_name,
+          Subgroup = i,
+          MSE = mse_value,
+          Value_Function = value_function_value
+        ))
+      }
+    }
+  }
+  
+  return(result_df)
+}
+```
+
+
+```{r}
+data_folder_path <- "../semi-transfer-learning/dataset/result17"
+files <- list.files(data_folder_path)[1:100]
+final_df <- data.frame()
+for (i in seq_along(files)) {
+  load(paste0(data_folder_path, "/", files[i]))
+  formatted_df <- format_list_to_df(res) 
+  seed <- sub("\\.RData$", "", files[i])
+  formatted_df$seed <- as.numeric(seed)
+  final_df <- rbind(final_df, formatted_df)
+}
+
+save(final_df, file = "raw_data.RData")
+
+mean_sd_by_model <- aggregate(MSE ~ Model, data = final_df, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+mean_vf_by_model <- aggregate(Value_Function ~ Model, data = final_df,  FUN = function(x) c(mean = max(x), sd = sd(x)))
+mean_sd_by_model <- do.call(data.frame, mean_sd_by_model)
+mean_vf_by_model <- do.call(data.frame, mean_vf_by_model)
+mean_sd_by_model
+mean_vf_by_model
+save(mean_sd_by_model, mean_vf_by_model, file = "Mean_Mean_model_summaries.RData")
+
+```
+
+```{r}
+library(ggplot2)
+
+# keep models
+mean_sd_by_model = mean_sd_by_model[
+  mean_sd_by_model$Model %in% c(
+    "eval_no_transfer",
+    "eval_pooling",
+    "eval_Sai",
+    "eval_pERM",
+    "eval_representation_learning",
+    "eval_ARMUL",
+    "eval_para_transfer_tuned",
+    "eval_semipara_transfer_tuned","eval_pool"
+  ), ]
+
+# relabel + enforce order
+mean_sd_by_model$Model <- factor(
+  mean_sd_by_model$Model,
+  levels = c(
+    "eval_no_transfer",
+    "eval_pooling",
+    "eval_Sai",
+    "eval_pERM",
+    "eval_representation_learning",
+    "eval_ARMUL",
+    "eval_para_transfer_tuned",
+    "eval_semipara_transfer_tuned",
+    "eval_pool"
+  ),
+  labels = c(
+    "Baseline",
+    "Data Pooling",
+    "Oracle Trans-Lasso",
+    "pERM",
+    "Representation Transfer Learning",
+    "ARMUL",
+    "Late Fusion",
+    "Late Fusion with Nuisance",
+    "Data Pooling"
+  )
+)
+# order by mean going down
+
+method_order <- c(
+  "Baseline",
+  "Data Pooling",
+  "Oracle Trans-Lasso",
+  "pERM",
+  "ARMUL",
+  "Late Fusion",
+  "Late Fusion with Nuisance"
+  
+)
+model_order <- unique(method_order)
+
+mean_sd_by_model$Model <- factor(mean_sd_by_model$Model, levels = model_order)
+
+colors <- c(
+  # ---- baseline（粉红系）----
+  "Baseline" = "#FFB3BA",                # soft pastel pink
+  "Data Pooling" = "#FFDFBA",     # peach pastel
+
+  # ---- transfer learning（蓝紫系）----
+  "Oracle Trans-Lasso" = "#BAE1FF",      
+  "pERM" = "#9BF6FF",                     
+  "Representation Transfer Learning" = "steelblue1",  
+  "ARMUL" = "#6FA8DC",     # medium blue
+
+  # ---- fusion（绿色系）----
+# ---- fusion（绿色系）----
+"Late Fusion" = "#7CFC00",          # bright lawn green
+"Late Fusion with Nuisance" = "#2ECC71"   # bright emerald green
+)
+
+big_font_theme <- theme(
+  axis.title = element_text(size = 20),
+  axis.text = element_text(size = 15),
+  strip.text = element_text(size = 15),
+  legend.text = element_text(size = 15),
+  legend.title = "Method", legend.position = "bottom"
+)
+p = ggplot(mean_sd_by_model, aes(x = Model, y = MSE.mean, colour = Model)) +
+  geom_point(size = 3) + 
+  geom_errorbar(
+    aes(
+      ymin = MSE.mean - 1.96*MSE.sd/10,
+      ymax = MSE.mean + 1.96*MSE.sd/10
+    ),
+    width = 0.2
+  ) +
+  labs(x = NULL, y = NULL, colour="Method") +
+  scale_colour_manual(values = colors) +
+   theme_minimal(base_size = 18) +
+  theme(axis.text.x = element_blank(), legend.position = "bottom")
+
+ggsave("../semi-transfer-learning/dataset/combined_err.pdf", plot = p, width = 10, height = 5, dpi = 300)
+
+p
+
+```
+
+
+
+```{r}
+final_df_max <- aggregate(MSE ~ Model+seed, data = final_df,  FUN = function(x) c(max = max(x), sd = sd(x)))
+methods = c( "eval_no_transfer", "eval_para_transfer_tuned", "eval_para_transfer_untuned", "eval_semipara_transfer_untuned", "eval_semipara_transfer_tuned")
+quantiles_list_max <- lapply(methods, function(m) {
+  quantile_df <- apply(final_df[final_df$Model == m, 3, drop = FALSE], 2, function(col) {
+    quantile(col, probs = c(0, 0.25, 0.5, 0.75))
+  })
+  colnames(quantile_df) <- m
+  quantile_df
+})
+quantiles_max <- do.call(cbind, quantiles_list_max)
+colnames(quantiles_max) <- c("Baseline", "Param_Transfer_Tuned", "Param_Transfer_Untuned", "Semiparam_Transfer_Untuned", "Semiparam_Transfer_Tuned")
+```
+
+```{r}
+library(reshape2)
+quantiles_long <- melt(quantiles_max, variable.name = "Method", value.name = "Value")
+
+# Load ggplot2
+library(ggplot2)
+
+# Create the boxplot
+ggplot(quantiles_long, aes(x = Var2, y = Value)) +
+  geom_boxplot() +
+  labs(
+
+    x = "Methods",
+    y = "Values"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels
+    legend.position = "none" # Remove legend
+  )
+```
+
+
+
+```{r}
+max_MSE = aggregate(MSE ~ Model + seed, data = final_df, FUN = function(x) c(maximum = max(x)))
+do.call(data.frame, max_MSE)
+miximum_MSE = aggregate(MSE ~ Model, data = max_MSE, FUN = function(x) c(mean = median(x), sd = sd(x)))
+miximum_MSE = do.call(data.frame, miximum_MSE)
+save(miximum_MSE, file = "Mean_maximum_MSE.RData")
+```
+
+```{r}
+library(ggplot2)
+df = miximum_MSE[miximum_MSE$Model %in% c("eval_no_transfer", "eval_para_transfer_tuned", "eval_semipara_transfer_tuned"), ]
+df$Model <- factor(df$Model, 
+                                  levels = c("eval_no_transfer", "eval_para_transfer_tuned", "eval_semipara_transfer_tuned"), 
+                                  labels = c("Baseline", "Para transfer tuned", "Semipara transfer tuned"))
+p<-ggplot(df, aes(x = Model, y = MSE.mean, color=Model)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = MSE.mean - 1.96 *MSE.sd/10, ymax = MSE.mean +1.96* MSE.sd / 10), 
+                width = 0.2) + # Error bars
+  labs(
+    x = "Model",
+    y = "Mean Squared Error (MSE)"
+  ) +
+  theme_minimal() +
+  scale_colour_manual(values = c("Baseline" = "orange", 
+                                 "Para transfer tuned" = "darkgreen", 
+                                 "Semipara transfer tuned" = "red"))+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+ggsave(
+  filename = "maximum_real_data.pdf",  # Specify the filename
+  plot = p,                        # Specify the plot object
+  width = 10, height = 6,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+p
+```
+
+
+```{r}
+models <- unique(final_df$Model)
+
+p_value_matrix <- matrix(NA, nrow = length(models), ncol = length(models), 
+                         dimnames = list(models, models))
+mean_value_matrix <- matrix("", nrow = length(models), ncol = length(models), 
+                         dimnames = list(models, models))
+
+for (i in 1:(length(models) - 1)) {
+  for (j in (i + 1):length(models)) {
+    model1 <- models[i]
+    model2 <- models[j]
+    
+    data1 <- final_df$MSE[final_df$Model == model1]
+    data2 <- final_df$MSE[final_df$Model == model2]
+    mean1 <- mean(data1)
+    mean2 <- mean(data2)
+    
+    ttest_result <- t.test(data1, data2)
+    
+    p_value_matrix[model1, model2] <- ttest_result$p.value
+    p_value_matrix[model2, model1] <- ttest_result$p.value # Symmetric
+    diff1 <- mean1 - mean2
+    diff2 <- mean2 - mean1
+    value1 <- if (ttest_result$p.value < 0.05) paste0(round(diff1, 3), "**") else round(diff1, 3)
+    value2 <- if (ttest_result$p.value < 0.05) paste0(round(diff2, 3), "**") else round(diff2, 3)
+    
+    # Store the strings
+    mean_value_matrix[model1, model2] <- value1
+    mean_value_matrix[model2, model1] <- value2
+  }
+}
+
+print(as.data.frame(p_value_matrix))
+print(as.data.frame(mean_value_matrix))
+
+```
+
+
+```{r}
+load("Mean_Mean_model_summaries.RData")
+mean_sd_by_model
+mean_vf_by_model
+load("Mean_maximum_MSE.RData")
+miximum_MSE
+load("raw_data.RData")
+final_df
+```
+
+
+```{r}
+X = readRDS("~/OneDrive - University of Florida/liang/semi-transfer-learning/TransferSemi_5/dataset/corr/X.Rdata")
+```
+
+```{r}
+all_dfs <- list()
+
+models <- c("para_transfer_tuned", "no_transfer", "semipara_transfer_tuned", "Sai_transfer", "ARMUL", "pERM")
+
+for (model in models){
+for (index in 1:4) {
+  file_name <- paste0("eval_", model, "_w_race.Rdata")
+  a <- readRDS(paste0("~/OneDrive - University of Florida/liang/semi-transfer-learning/TransferSemi_5/dataset/corr/", file_name))
+  if(model == "Sai_transfer"){target = a[[index]]$f_hat}else{
+  target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2}
+  continuous_vars <- c("ben1tot", "se1tot", "sus1tot", "fear1tot", "fatal1tot", "know1tot")
+  selected_columns <- X[[index]]#[, continuous_vars, drop = FALSE]
+  
+  correlations <- sapply(1:ncol(selected_columns), function(i) cor(selected_columns[, i], as.numeric(target), method = "pearson", use="complete.obs"))
+  names(correlations) <- colnames(selected_columns)
+  
+  n_task <- index
+  
+  
+  # Create a data frame
+  final_df <- data.frame(
+    Variable = names(correlations),
+    Correlation = correlations,
+    n_task = n_task,
+    model = model,
+    stringsAsFactors = FALSE # Ensures string variables remain as character type
+  )
+  
+  all_dfs[[model]][[index]] <- final_df
+}
+}
+model = "pool"
+file_name <- paste0("eval_", model, "_w_race.Rdata")
+b <- readRDS(paste0("../semi-transfer-learning/dataset/corr/", file_name))
+target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2
+X_pool <-  readRDS("../semi-transfer-learning/dataset/corr/pool_X.Rdata")
+elected_columns <- X_pool#[, continuous_vars, drop = FALSE]
+  
+correlations <- sapply(1:ncol(selected_columns), function(i) cor(selected_columns[, i], as.numeric(target), method = "pearson", use="complete.obs"))
+names(correlations) <- colnames(selected_columns)
+
+n_task <- index
+final_df <- data.frame(
+  Variable = names(correlations),
+  Correlation = correlations,
+  n_task = n_task,
+  model = model,
+  stringsAsFactors = FALSE # Ensures string variables remain as character type
+)
+all_dfs[[model]][[index]] <- final_df
+all_dfs_flattened <- do.call(c, all_dfs)
+combined_df <- do.call(rbind, all_dfs_flattened)
+print(combined_df)
+
+```
+
+```{r}
+library(ggplot2)
+library(reshape2)
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x)))
+df = do.call(data.frame, df)
+
+ggplot(df, aes(x = Variable, y = Correlation, group = interaction(model),
+                        color = model)) +
+  geom_line( size = 1) +
+  geom_point(size = 3) +                   
+  labs(
+    x = "Variable",
+    y = "Correlation",
+    #color = "n_task",
+    linetype = "Model"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+
+ggplot(df, aes(x = Variable, y = Correlation, group = model, color = model)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  facet_wrap(~model, scales = "free_y") + 
+  labs(
+    x = "Variable",
+    y = "Correlation",
+    color = "Model"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+
+```
+
+```{r}
+library(dplyr)
+data_melted <- dcast(df, model ~ Variable, value.var = "Correlation")
+rownames(data_melted) <- data_melted$model
+data_matrix <- as.matrix(data_melted[,-1])
+
+heatmap_data_con <- reshape2::melt(data_matrix)
+rank_order <- heatmap_data_con %>%
+  filter(Var1 == "semipara_transfer_tuned") %>%
+  arrange(desc(value)) %>%
+  pull(Var2)
+
+# Reorder data based on the rank order
+heatmap_data_con$Var2 <- factor(heatmap_data_con$Var2, levels = rank_order)
+
+ggplot(heatmap_data_con, aes(Var2, Var1, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = round(value, 3)), color = "black", size=2) +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(face = "bold"),
+    legend.title = element_text(size = 10)
+  )+
+  labs(x = "Variable", y = "Model", fill = "Correlation")
+```
+
+
+
+```{r}
+
+
+for (model in models){
+for (index in 1:4) {
+  file_name <- paste0("eval_", model, "_w_race.Rdata")
+  a <- readRDS(paste0("../semi-transfer-learning/dataset/corr/", file_name))
+  if(model == "Sai_transfer"){target = a[[index]]$f_hat}else{
+  target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2}
+  continuous_vars <- c("bar1tot", "ben1tot", "se1tot", "sus1tot", "fear1tot", "fatal1tot", "know1tot")
+  selected_columns <- X[[index]][, setdiff(colnames(X[[index]]), continuous_vars), drop = FALSE]
+  
+  correlations <- sapply(1:ncol(selected_columns), function(i) {
+  cor(selected_columns[, i], target)
+})
+  names(correlations) <- setdiff(colnames(X[[index]]), continuous_vars)
+  
+  n_task <- index
+  
+  
+  # Create a data frame
+  final_df <- data.frame(
+    Variable = names(correlations),
+    Correlation = correlations,
+    n_task = n_task,
+    model = model,
+    stringsAsFactors = FALSE # Ensures string variables remain as character type
+  )
+  
+  # Append the data frame to the list
+  all_dfs[[model]][[index]] <- final_df
+}
+}
+all_dfs_flattened <- do.call(c, all_dfs)
+combined_df <- do.call(rbind, all_dfs_flattened)
+print(combined_df)
+```
+
+
+```{r}
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x)))
+df = do.call(data.frame, df)
+
+ggplot(df, aes(x = Variable, y = Correlation, group = interaction(model),
+                        color = model)) +
+  geom_line( size = 1) +
+  geom_point(size = 3) +                   
+  labs(
+    x = "Variable",
+    y = "Correlation",
+    #color = "n_task",
+    linetype = "Model"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+
+ggplot(df, aes(x = Variable, y = Correlation, group = model, color = model)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  facet_wrap(~model, scales = "free_y") + 
+  labs(
+    x = "Variable",
+    y = "Correlation",
+    color = "Model"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+
+```
+
+```{r}
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = mean)
+ggplot(df, aes(x = Variable, y = Correlation, fill = model)) +
+  geom_bar(stat = "identity", position = "stack") + 
+  labs(
+    x = "Variable",
+    y = "Correlation",
+    fill = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+```{r}
+data_matrix <- as.matrix(data_melted[,-1])
+data_matrix <- data_matrix[, !(colnames(data_matrix) %in% c("married", "stage"))]
+data_melted <- dcast(df, model ~ Variable, value.var = "Correlation")
+rownames(data_melted) <- data_melted$model
+
+
+heatmap_data <- reshape2::melt(data_matrix)
+
+heatmap_data2 <- rbind(heatmap_data, heatmap_data_con)
+
+library(forcats)
+
+heatmap_data2$Var1 <- fct_recode(heatmap_data2$Var1, 
+                                   "Baseline"= "no_transfer",
+                                    "Late Fusion"= "para_transfer_tuned",
+                                    "Oracle Trans-Lasso"="Sai_transfer",
+                                    "Late Fusion with Nuisance"="semipara_transfer_tuned",
+                                    "Data Pooling" = "pool")
+
+heatmap_data2$Var2 <- fct_recode(
+  heatmap_data2$Var2,
+  "Age > 55"                               = "age_categoryAbove_55",
+  #"Age <= 55"                               = "age_categoryBelow_55",
+  "Spoken to MD/RN about mammogram (2 yr)" = "docnursespoken2years",
+  "Family history of breast cancer"        = "fdrhistory",
+  "Race: Caucasian"                        = "racecauc",
+  "Working for pay"                        = "workpay",
+  #"Never had mammogram"                    = "yearmamsum0",
+  "Had a mammogram 1 yr in last 5 years"         = "yearmamsum1",
+  "Had a mammogram 2 yr in last 5 years"         = "yearmamsum2",
+  "Had a mammogram 3 yr in last 5 years"         = "yearmamsum3",
+  "Had a mammogram 4 yr in last 5 years"         = "yearmamsum4",
+  "Susceptibility scale"                   = "sus1tot",
+  "Knowledge scale"                        = "know1tot",
+  "Benefits scale"                         = "ben1tot",
+  "Self efficacy scale"                    = "se1tot",
+  "Fear scale"                             = "fear1tot",
+  "Barriers scale"                         = "bar1tot",
+  "Fatalism scale"                         = "fatal1tot"
+)
+
+rank_order <- heatmap_data2 %>%
+  filter(Var1 == "Late Fusion with Nuisance") %>%
+  arrange(desc(value)) %>%
+  pull(Var2) |> unique()
+
+# Reorder data based on the rank order
+heatmap_data2$Var2 <- factor(heatmap_data2$Var2, levels = rank_order)
+heatmap_data2$Var1 <- factor(heatmap_data2$Var1, levels = rev(levels(heatmap_data2$Var1)))
+method_order <- c(
+  "Baseline",
+  "Data Pooling",
+  "Oracle Trans-Lasso",
+  "Representation Transfer",
+  "pERM",
+  "ARMUL",
+  "Late Fusion",
+  "Late Fusion with Nuisance"
+)
+
+heatmap_data2$Var1 <- factor(heatmap_data2$Var1, levels = rev(method_order))
+p<-ggplot(heatmap_data2, aes(Var2, Var1, fill = value)) +
+  geom_tile() +
+  #geom_text(aes(label = round(value, 3)), color = "black", size=2) +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size=13),
+    axis.text.y = element_text(face = "bold", size = 15),
+    legend.title = element_text(size = 12)
+  )+
+  labs(x = "Variable", y = NULL, fill = "Correlation")
+p
+ggsave( "~/OneDrive - University of Florida/liang/semi-transfer-learning/corr.pdf", p, width = 10, height = 6,)
+```
+
+```{r}
+heatmap_data2$Var1 <- gsub("no_transfer", "Baseline", heatmap_data2$Var1)
+heatmap_data2$Var1 <- gsub("para_transfer_tuned", "Para transfer tuned", heatmap_data2$Var1)
+heatmap_data2$Var1 <- gsub("semipara_transfer_tuned", "Semipara transfer tuned", heatmap_data2$Var1)
+
+```
+
+```{r}
+miximum_MSE$Model = paste0(miximum_MSE$Model, "_max")
+mean_sd_by_model$Model = paste0(mean_sd_by_model$Model, "_mean")
+rbind(miximum_MSE, mean_sd_by_model)
+```
+
+```{r}
+df =rbind(miximum_MSE, mean_sd_by_model)
+df <- df[!(df$Model %in% c("eval_para_transfer_untuned_max", "eval_semipara_transfer_untuned_max", "eval_para_transfer_untuned_mean", "eval_semipara_transfer_untuned_mean")), ]
+
+df$Group <- ifelse(grepl("_max$", df$Model), "Max", "Mean")
+
+df$Model <- gsub("eval_|_max|_mean", "", df$Model)
+df$Model <- gsub("_", " ", df$Model)
+df$Model <- gsub("no transfer", "Baseline", df$Model)
+df$Model <- gsub("para transfer tuned", "Late Fusion", df$Model)
+df$Model <- gsub("semiLate Fusion", "Late Fusion with Nuisance", df$Model)
+df$Method = df$Model
+custom_colors <- c("Baseline" = "orange", 
+                   "Late Fusion" = "red", 
+                   "Late Fusion with Nuisance" = "darkgreen")
+
+p=ggplot(df, aes(x = Method, y = MSE.mean, color = Method)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = MSE.mean - 1.96 *MSE.sd/10, ymax = MSE.mean + 1.96 *MSE.sd/10),
+                width = 0.2) +
+  facet_wrap(~Group, scales = "free_x", ncol = 2) +
+  scale_color_manual(values = custom_colors) +
+  labs(
+       x = "Method",
+       y = "MSE Mean",
+       color = "Method") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("../transfer-learning/dataset/combined_err.pdf", p, width = 10, height = 6,)
+p
+```
+
