@@ -288,7 +288,7 @@ for (index in 1:ntask) {
 }
 max.dim <- 1
 p <- ncol(X[[1]])
-out_dir <- "/corr"
+out_dir <- "corr"
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 saveRDS(X, file = file.path(out_dir, "X.Rdata"))
 

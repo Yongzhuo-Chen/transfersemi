@@ -13,17 +13,17 @@ similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
 set.seed(seed)
 df_fixed = 2
 
-dictionary_mse = paste0("../../results_6_dim", dim,"/mse_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_mse = paste0("../../semi-transfer-learning/results_6_dim", dim,"/mse_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_mse)) {
   dir.create(dictionary_mse, recursive = TRUE)
 }
 filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-dictionary_estimate = paste0("results_6_dim", dim, "/est_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_estimate = paste0("../../semi-transfer-learning/results_6_dim", dim, "/est_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_estimate)) {
   dir.create(dictionary_estimate, recursive = TRUE)
 }
 filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
-dictionary_time = paste0("time_6_dim", dim, "/_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
+dictionary_time = paste0("../../semi-transfer-learning/time_6_dim", dim, "/_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
 if (!file.exists(dictionary_time)) {
   dir.create(dictionary_time, recursive = TRUE)
 }

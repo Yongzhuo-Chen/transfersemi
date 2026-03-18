@@ -5,7 +5,7 @@ lapply(files, source)
 library(glmnet)
 
 simulation <- function(n=n, similarity=similarity, seed=seed, dim=dim){
-result_dir = paste0("../..//CATE_dim", dim, "/CATE_", n, "_", similarity)
+result_dir = paste0("../../semi-transfer-learning/CATE_dim", dim, "/CATE_", n, "_", similarity)
 if (!dir.exists(result_dir)) {
   dir.create(result_dir, recursive = TRUE)
 }

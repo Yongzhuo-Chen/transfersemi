@@ -18,8 +18,12 @@ This repository contains code and data to reproduce the simulation results, real
 
 - `real_data/`  
   Code for real data analysis.  
-  ⚠️ Due to data restrictions, the original dataset is not included.  
-  Pseudo-code and analysis pipeline are provided.
+  Due to data restrictions, the original dataset cannot be shared.  
+  We provide pseudo-code and the full analysis pipeline.
+
+  To reproduce the correlation analysis between covariates and response variables:
+  ```bash
+  Rscript correlations.R
 
 - `visualization_github/`  
   R Markdown (`.Rmd`) files for generating figures in the paper.
