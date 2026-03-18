@@ -9,18 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 work_dir = "../semi-transfer-learning/results_4_dim8"
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4", "#D55E00")
 colors <- c(
-  # ---- baseline（粉红系）----
   "Baseline" = "#FFB3BA",                # soft pastel pink
   "Data Pooling" = "#FFDFBA",     # peach pastel
-
-  # ---- transfer learning（蓝紫系）----
   "Oracle Trans-Lasso" = "#BAE1FF",      
   "pERM" = "#9BF6FF",                     
   "Representation Transfer" = "steelblue1",  
   "ARMUL" = "#6FA8DC",     # medium blue
 
-  # ---- fusion（绿色系）----
-# ---- fusion（绿色系）----
 "Late Fusion" = "#7CFC00",          # bright lawn green
 "Late Fusion with Nuisance" = "#2ECC71"   # bright emerald green
 )
