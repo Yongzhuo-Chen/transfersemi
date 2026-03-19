@@ -125,8 +125,8 @@ split_into_tasks <- function(data, n_tasks = 5) {
 
 
 
-cape <- read.csv("/home/chen.yongzhuo/blue_gator_zhang/chen.yongzhuo/TransferSemi_5/dataset/cape.csv")
-ninr <- read.csv("/home/chen.yongzhuo/blue_gator_zhang/chen.yongzhuo/TransferSemi_5/dataset/ninr.csv")
+cape <- read.csv("cape_pseudo.csv")
+ninr <- read.csv("ninr_pseudo.csv")
 cape_copy <- cape[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
 ninr_copy <- ninr[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
 cape_train_test <- split_data(cape_copy)
@@ -774,8 +774,8 @@ for (index in 1:ntask){
 # ----------------------------
 
 # 1) load + same column drops
-cape <- read.csv("/home/chen.yongzhuo/blue_gator_zhang/chen.yongzhuo/TransferSemi_5/dataset/cape.csv")
-ninr <- read.csv("/home/chen.yongzhuo/blue_gator_zhang/chen.yongzhuo/TransferSemi_5/dataset/ninr.csv")
+cape <- read.csv("cape_pseudo.csv")
+ninr <- read.csv("ninr_pseudo.csv")
 
 
 cape_copy <- cape[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]

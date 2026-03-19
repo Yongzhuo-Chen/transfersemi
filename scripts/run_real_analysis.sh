@@ -1,7 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=real_data_analysis
-#SBATCH --account=muxuan.liang
-#SBATCH --qos=muxuan.liang-b
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=8G
