@@ -1,0 +1,436 @@
+---
+title: "read_simulation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+colors <- c(
+  "Baseline" = "#FFB3BA",                # soft pastel pink
+  "Data Pooling" = "#FFDFBA",     # peach pastel
+
+  "Oracle Trans-Lasso" = "#BAE1FF",      
+  "pERM" = "#9BF6FF",                     
+  "Representation Transfer" = "steelblue1",  
+  "ARMUL" = "#6FA8DC",     # medium blue
+
+
+"Late Fusion" = "#7CFC00",          # bright lawn green
+"Late Fusion with Nuisance" = "#2ECC71"   # bright emerald green
+)
+
+```
+
+
+```{r}
+library(ggplot2)
+setwd("../semi-transfer-learning/DR_9_new")
+sample_sizes <- c(100, 200)
+similarity_values <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+combined_results <- list()
+for (n in sample_sizes) {
+  for (sim in similarity_values) {
+    folder_path <- paste0("../semi-transfer-learning/DR_9_new/mse_n_",n, "_simi_",sim)
+    rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
+    
+    seed_val <- 0
+    for (file in rdata_files) {
+      seed_val <- seed_val + 1
+      
+      temp_env <- new.env()
+      load(file, envir = temp_env)
+      
+      # Identify the data object (assumes it's called 'result' or the first non-'seed' object)
+      obj_names <- setdiff(ls(envir = temp_env), "seed")
+      if ("result" %in% obj_names) {
+        data_obj <- temp_env$result
+      } else {
+        data_obj <- get(obj_names[1], envir = temp_env)
+      }
+      
+      # Convert to a data frame, if needed
+      data_obj <- as.data.frame(data_obj)
+      
+      # Record n, similarity, and seed
+      data_obj$n <- n
+      data_obj$similarity <- sim
+      data_obj$seed <- seed_val
+      
+      combined_results[[length(combined_results) + 1]] <- data_obj
+    }
+  }
+}
+
+final_combined <- do.call(rbind, combined_results)
+
+save(final_combined, file = "final_combined_results.RData")
+
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+library(stringr)
+# Load the processed data
+setwd("../semi-transfer-learning/DR_9_new")
+
+load("final_combined_results.RData")  # Adjust path if necessary
+
+# If method names are stored as row names, convert them to a "Method" column.
+if (!"Method" %in% colnames(final_combined)) {
+  final_combined <- rownames_to_column(final_combined, var = "Method")
+}
+
+# Recode method names so that variants are combined.
+final_combined <- final_combined %>%
+  mutate(Method = case_when(
+    grepl("^Baseline", Method) ~ "Baseline",
+    grepl("^Sai_Transfer", Method) ~ "Sai_Transfer",
+    grepl("^Para_Transfer_Tuned", Method) ~ "Para_Transfer_Tuned",
+    grepl("^Pooled", Method) ~ "Pooled",
+    grepl("^ARMUL", Method) ~ "ARMUL",
+    grepl("^pERM", Method) ~ "pERM",
+    
+    TRUE ~ Method
+  ))
+
+# Compute the maximum MSE across Task columns for each combination of Method, n, similarity, and seed.
+max_mse_data <- final_combined %>%
+  group_by(Method, n, similarity, seed) %>%
+  summarise(MaxMSE = mean(c_across(starts_with("Task")), na.rm = TRUE),
+            .groups = "drop")
+max_mse_data <- max_mse_data %>%
+  mutate(Method = factor(Method, 
+                         levels = c("Baseline", 
+                                    "Para_Transfer_Tuned", 
+                                    "Pooled",
+                                    "Sai_Transfer", "ARMUL", "pERM")))
+
+# For each group (Method, n, similarity), compute the whisker endpoints and filter out values outside.
+# This "non_outlier_data" will be used only for setting the y-scale.
+non_outlier_data <- max_mse_data %>%
+  group_by(Method, n, similarity) %>%
+  group_modify(~ {
+    # Use a stricter threshold: coef = 1 (instead of the default 1.5)
+    bp_stats <- boxplot.stats(.x$MaxMSE, coef = 1)$stats  
+    lower <- bp_stats[1]
+    upper <- bp_stats[4]
+    .x %>% filter(MaxMSE >= lower, MaxMSE <= upper)
+  }) %>%
+  ungroup()
+
+y_lim <- range(non_outlier_data$MaxMSE, na.rm = TRUE)
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("", value)  # Format 'similarity' as "similarity = ..."
+)
+non_outlier_data <- non_outlier_data %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+     str_detect(Method, "ARMUL") ~ "ARMUL",
+     str_detect(Method, "pERM") ~ "pERM",
+    TRUE ~ Method
+  ))
+non_outlier_data$Method <- factor(non_outlier_data$Method,
+                          levels = c("Baseline",
+                                     "Oracle Trans-Lasso",
+                                     "Late Fusion","Data Pooling",
+                                     "ARMUL","pERM"
+                                     ))
+
+method_order <- non_outlier_data %>%
+  group_by(Method) %>%
+  summarise(med_value = median(MaxMSE, na.rm = TRUE)) %>%
+  arrange(desc(med_value)) %>%
+  pull(Method)
+non_outlier_data$Method <- factor(non_outlier_data$Method, levels = method_order)
+p2 <- ggplot(non_outlier_data |> filter(Method!="Para_Transfer"), aes(x = Method, y = MaxMSE, fill = Method)) +
+  geom_boxplot() +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(
+    x = "Method",
+    y = "Mean MSE",
+
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    strip.text = element_text(size = 8),
+    legend.position = "bottom"
+  ) +
+  scale_fill_manual(values = colors) +scale_y_log10()
+
+# Save and display the plot
+ggsave(
+  filename = "../semi-transfer-learning/DR_mean_mse_plot_no_outliers.pdf",
+  plot = p2,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+print(p2)
+```
+
+
+
+# Start
+
+```{r}
+setwd("../semi-transfer-learning/DR_9_new")
+
+# Load the processed data
+load("final_combined_results.RData")  # Adjust path if necessary
+
+# If method names are stored as row names, convert them to a "Method" column.
+if (!"Method" %in% colnames(final_combined)) {
+  final_combined <- rownames_to_column(final_combined, var = "Method")
+}
+
+# Recode method names so that variants are combined.
+final_combined <- final_combined %>%
+  mutate(Method = case_when(
+    grepl("^Baseline", Method) ~ "Baseline",
+    grepl("^Sai_Transfer", Method) ~ "Sai_Transfer",
+    grepl("^Para_Transfer_Tuned", Method) ~ "Para_Transfer_Tuned",
+    grepl("^Pooled", Method) ~ "Pooled",
+    grepl("^ARMUL", Method) ~ "ARMUL",
+    grepl("^pERM", Method) ~ "pERM",
+    TRUE ~ Method
+  ))
+
+# Compute the maximum MSE across Task columns for each combination of Method, n, similarity, and seed.
+max_mse_data <- final_combined %>%
+  group_by(Method, n, similarity, seed) %>%
+  summarise(MaxMSE = max(c_across(starts_with("Task")), na.rm = TRUE),
+            .groups = "drop")
+max_mse_data <- max_mse_data %>%
+  mutate(Method = factor(Method, 
+                         levels = c("Baseline", 
+                                    "Para_Transfer_Tuned", 
+                                    "Pooled",
+                                    "Sai_Transfer",
+                                    "ARMUL", "pERM")))
+
+# For each group (Method, n, similarity), compute the whisker endpoints and filter out values outside.
+# This "non_outlier_data" will be used only for setting the y-scale.
+non_outlier_data <- max_mse_data %>%
+  group_by(Method, n, similarity) %>%
+  group_modify(~ {
+    # Use a stricter threshold: coef = 1 (instead of the default 1.5)
+    bp_stats <- boxplot.stats(.x$MaxMSE, coef = 1)$stats  
+    lower <- bp_stats[1]
+    upper <- bp_stats[4]
+    .x %>% filter(MaxMSE >= lower, MaxMSE <= upper)
+  }) %>%
+  ungroup()
+
+y_lim <- range(non_outlier_data$MaxMSE, na.rm = TRUE)
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("", value)  # Format 'similarity' as "similarity = ..."
+)
+non_outlier_data <- non_outlier_data %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+     str_detect(Method, "Pooled") ~ "Data Pooling",
+    str_detect(Method, "ARMUL") ~ "ARMUL",
+     str_detect(Method, "pERM") ~ "pERM",
+    TRUE ~ Method
+  ))
+non_outlier_data$Method <- factor(non_outlier_data$Method,
+                          levels = c("Baseline",
+                                     "Oracle Trans-Lasso",
+                                     "Late Fusion","Data Pooling",
+                                     "ARMUL","pERM"
+                                     ))
+method_order <- non_outlier_data %>%
+  group_by(Method) %>%
+  summarise(med_value = median(MaxMSE, na.rm = TRUE)) %>%
+  arrange(desc(med_value)) %>%
+  pull(Method)
+non_outlier_data$Method <- factor(non_outlier_data$Method, levels = method_order)
+p1 <- ggplot(non_outlier_data |> filter(Method!="Para_Transfer"), aes(x = Method, y = MaxMSE, fill = Method)) +
+  geom_boxplot() +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(
+    x = "Method",
+    y = "Maximum MSE",
+
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    strip.text = element_text(size = 8),
+    legend.position = "bottom"
+  ) +
+  scale_fill_manual(values = colors) +scale_y_log10()
+
+# Save and display the plot
+ggsave(
+  filename = "../semi-transfer-learning/DR_maximum_mse_plot_no_outliers.pdf",
+  plot = p2,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+print(p1)
+```
+
+
+
+
+```{r}
+library(patchwork)
+library(cowplot)
+p1 <- p1 + theme(text = element_text(size = 16))
+p2 <- p2 + theme(text = element_text(size = 16))
+
+combined_plot <- cowplot::plot_grid(p2, p1, ncol = 1, align = "v")
+
+combined_plot <- plot_grid(p2, p1, ncol = 1, align = "v")
+combined_plot
+
+
+ggsave(filename = "combined_DR_group_plot.pdf", 
+       plot = combined_plot, 
+       width = 12,    # Increase this value to make the plot wider
+       height = 8,    # Adjust the height accordingly if needed
+       dpi = 300)
+```
+
+
+
+```{r}
+final_combined <- final_combined %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+     str_detect(Method, "Pooled") ~ "Data Pooling",
+    str_detect(Method, "ARMUL") ~ "ARMUL",
+     str_detect(Method, "pERM") ~ "pERM",
+    TRUE ~ Method
+  ))
+final_combined <- final_combined[, 1:9]
+final_combined <- final_combined[apply(final_combined[,2:8], 1, function(row) all(is.finite(row))), ]
+final_combined[, 2:6] <- log(final_combined[, 2:6])
+
+
+mat<-final_combined %>%
+  group_by(Method, similarity, n) %>%                             # 1. group by method
+  summarise(across(starts_with("Task"),                # 2. for every column whose
+                   ~ mean(.x, na.rm = TRUE),           #    name begins with “task”
+                   .names = "mean_{.col}")) |> filter(n==200)
+
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+df_heatmap <- as.data.frame(mat)
+df_long <- df_heatmap %>%
+  pivot_longer(cols = starts_with("mean_task"), names_to = "task", values_to = "value")
+
+# Clean task labels
+df_long$task <- gsub("mean_", "", df_long$task)
+
+# Plot heatmap
+methods <- c("Baseline", "Sai_Transfer", "Para_Transfer_Tuned", "NonPara_Transfer_Tuned")
+ggplot(df_long |> filter(Method=="Baseline"), aes(x = similarity, y = task, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red") +
+  theme_minimal() +
+  labs(x = "Task", y = "Method", fill = "Mean") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Filter to methods of interest if needed
+methods <- c("Baseline",
+                                     "Oracle Trans-Lasso",
+                                     "Late Fusion","Data Pooling",
+                                     "ARMUL","pERM")
+df_filtered <- df_long %>% filter(Method %in% methods) |> mutate(Method = factor(Method, levels = methods))
+
+# Plot heatmap
+p <- ggplot(df_filtered, aes(x = task, y = similarity, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red", name = "Mean of Log") +
+  facet_wrap(~Method, ncol = 3) +  # Facet by method
+  theme_minimal() +
+  labs(x = "Task", y = "Similarity") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(1, "lines")
+  )
+ggsave(
+  filename = "../semi-transfer-learning/DR_heat_map_DR.pdf",  # Specify the filename
+  plot = p,                        # Specify the plot object
+  width = 12, height = 6,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+p
+```
+
+```{r}
+p <- ggplot(df_filtered, aes(x = task, y = similarity, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red", name = "Mean of Log") +
+  guides(fill = guide_colorbar(
+    barwidth = 15,
+    barheight = 2,
+    title.theme = element_text(size = 18),
+    label.theme = element_text(size = 20)
+  )) +
+  scale_x_discrete(labels = c(
+    "Task1" = "T1",
+    "Task2" = "T2",
+    "Task3" = "T3",
+    "Task4" = "T4",
+    "Task5" = "T5"
+  )) +
+  facet_wrap(~Method, ncol = 3) +
+  theme_minimal(base_size = 23) +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 15),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(1.5, "lines"),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  "../semi-transfer-learning/DR_heat_map_DR.pdf",
+  plot = p,
+  width = 16,
+  height = 8,
+  dpi = 300
+)
+
+p
+```
+

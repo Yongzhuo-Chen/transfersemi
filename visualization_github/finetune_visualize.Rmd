@@ -1,0 +1,583 @@
+---
+title: "finetune_visualize"
+output: html_document
+---
+
+```{r}
+work_dir = "results_5_dim8"
+
+setwd(work_dir)
+library(dplyr)
+library(reshape2)
+library(labelled)
+library(ggplot2)
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+for (file in files) {
+  cat("Loaded:", file, "\n")
+}
+
+prepare_data <- function(result, file_name) {
+  # Define methods to analyze
+  methods <- c("NonPara_Transfer_Tuned")
+
+  # Generate quantile data for each method
+  quantiles_list <- lapply(methods, function(m) {
+    # 1 meas max and 2 means mean
+    quantile_df <- apply(result[result$method == m, "mean_value", drop = FALSE], 2, function(col) {
+      quantile(col, probs = c(0, 0.25, 0.5, 0.75))
+    })
+    colnames(quantile_df) <- m
+    quantile_df
+  })
+
+  # Combine quantile data and reshape it to long format
+  quantiles <- do.call(cbind, quantiles_list)
+  quantiles_long <- reshape2::melt(quantiles, variable.name = "Method", value.name = "Value")
+  
+  # Add a column with the file name for faceting
+  quantiles_long$Dataset <- basename(file_name)
+  
+  return(quantiles_long)
+}
+
+
+
+
+
+all_data <- do.call(rbind, lapply(files, function(file) {
+  result <- load(file)
+  result <- get(result)
+  prepare_data(result, file)
+}))
+all_data <- all_data %>%
+  mutate(
+    # Extract 'n' (e.g., 200 from "mse_n_200_simi_0.4")
+    n = as.numeric(gsub(".*_n_(\\d+)_.*", "\\1", Dataset)),
+    
+    # Extract 'similarity' (e.g., 0.4 from "mse_n_200_simi_0.4")
+    similarity = as.numeric(gsub(".*_simi_(\\d+(?:\\.\\d+)?).*", "\\1", Dataset))
+  )
+all_data <- all_data %>%
+  rename(Method = Var2) |> filter(n!=500)
+
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("" ,value)  # Format 'similarity' as "similarity = ..."
+)
+
+# Plot with customized facet labels
+plot <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 6, angle = 20)
+  ) #+
+  #scale_fill_manual(values = c("orange", "darkgreen"))
+library(stringr)
+
+all_data_1 = all_data
+all_data <- all_data_1 %>%
+  mutate(Method = case_when(
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+
+    TRUE ~ Method
+    
+
+  ))
+all_data$Method <- factor(all_data$Method,
+                          levels = c(
+                                     "Late Fusion with Nuisance"
+                                     ))
+plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    #axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_blank(),
+    legend.position = "none"
+    #strip.text = element_text(size = 6, angle = 20)
+  ) + scale_y_log10()
+ggsave(
+  filename = "mean_mse_plot.pdf",  # Specify the filename
+  plot = plot1,                        # Specify the plot object
+  width = 10, height = 12,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+original = all_data
+rm(all_data)
+```
+
+```{r}
+work_dir = "semi-transfer-learning/results_6_dim8"
+
+setwd(work_dir)
+library(dplyr)
+library(reshape2)
+library(labelled)
+library(ggplot2)
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+for (file in files) {
+  cat("Loaded:", file, "\n")
+}
+
+prepare_data <- function(result, file_name) {
+  # Define methods to analyze
+  methods <- c("NonPara_Transfer_Tuned")
+
+  # Generate quantile data for each method
+  quantiles_list <- lapply(methods, function(m) {
+    # 1 meas max and 2 means mean
+    quantile_df <- apply(result[result$method == m, "mean_value", drop = FALSE], 2, function(col) {
+      quantile(col, probs = c(0, 0.25, 0.5, 0.75))
+    })
+    colnames(quantile_df) <- m
+    quantile_df
+  })
+
+  # Combine quantile data and reshape it to long format
+  quantiles <- do.call(cbind, quantiles_list)
+  quantiles_long <- reshape2::melt(quantiles, variable.name = "Method", value.name = "Value")  
+  # Add a column with the file name for faceting
+  quantiles_long$Dataset <- basename(file_name)
+  
+  return(quantiles_long)
+}
+
+
+
+
+
+all_data <- do.call(rbind, lapply(files, function(file) {
+  result <- load(file)
+  result <- get(result)
+  prepare_data(result, file)
+}))
+all_data <- all_data %>%
+  mutate(
+    # Extract 'n' (e.g., 200 from "mse_n_200_simi_0.4")
+    n = as.numeric(gsub(".*_n_(\\d+)_.*", "\\1", Dataset)),
+    
+    # Extract 'similarity' (e.g., 0.4 from "mse_n_200_simi_0.4")
+    similarity = as.numeric(gsub(".*_simi_(\\d+(?:\\.\\d+)?).*", "\\1", Dataset))
+  )
+all_data <- all_data %>%
+  rename(Method = Var2) |> filter(n!=500)
+
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("" ,value)  # Format 'similarity' as "similarity = ..."
+)
+
+# Plot with customized facet labels
+plot <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 6, angle = 20)
+  ) #+
+  #scale_fill_manual(values = c("orange", "darkgreen"))
+library(stringr)
+
+all_data_1 = all_data
+all_data <- all_data_1 %>%
+  mutate(Method = case_when(
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+
+    TRUE ~ Method
+    
+
+  ))
+all_data$Method <- factor(all_data$Method,
+                          levels = c(
+                                     "Late Fusion with Nuisance"
+                                     ))
+plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    #axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_blank(),
+    legend.position = "none"
+    #strip.text = element_text(size = 6, angle = 20)
+  ) + scale_y_log10()
+ggsave(
+  filename = "mean_mse_plot.pdf",  # Specify the filename
+  plot = plot1,                        # Specify the plot object
+  width = 10, height = 12,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+original2 = all_data
+original2$Method = "Late Fusion with Nuisnace (more parameters)"
+rm(all_data)
+```
+
+
+
+```{r}
+work_dir = "/semi-transfer-learning/results_finetune_new8"
+setwd(work_dir)
+n = 500
+similarity = 1
+all_combined <- NULL
+for (n in c(100, 200)) {
+  for (similarity in c(0, 0.2, 0.4, 0.6, 0.8, 1)){
+    similarity= (similarity)
+    folder_path <- paste0(work_dir, "/mse_n_", 
+                        n, "_simi_", similarity)
+    output_file <- sprintf("%s/mse_n_%d_simi_%.2f.RData", work_dir, n, similarity)
+
+    rds_files <- list.files(folder_path, pattern = "\\.rds$", full.names = TRUE)
+    rds_data <- lapply(rds_files, readRDS)
+    read_and_add_metadata <- function(file) {
+      data <- tryCatch({
+        readRDS(file)
+      }, error = function(e) {
+        message(sprintf("Error reading %s: %s", file, e))
+        return(NULL)
+      })
+      if (!is.null(data)) {
+        data$method <- rownames(data)
+        data$dataset <- sub("\\.rds$", "", basename(file))
+        seed_number <- as.numeric(sub(".*_(\\d+)$", "\\1", data$dataset))
+        data$seed <- seed_number
+      }
+      return(data)
+    }
+    
+    # Load all RDS files and add metadata
+    rds_data <- lapply(rds_files, read_and_add_metadata)
+    all_data <- do.call(rbind, rds_data)
+    # Combine all dataframes into one
+    all_data <- all_data[order(all_data$seed), ]
+    
+    max_per_row <- apply(all_data[,1:5], 1, max)
+    mean_per_row <- apply(all_data[,1:5], 1, mean)
+    median_per_row <- apply(all_data[,1:5],1, median)
+    task1 <- all_data[,1]
+    task2 <- all_data[,2]
+    task3 <- all_data[,3]
+    task4 <- all_data[,4]
+    task5 <- all_data[,5]
+    output <- data.frame(
+      max_value = max_per_row,
+      mean_value = mean_per_row,
+      median_value = median_per_row,
+      task1 = task1,
+      task2 = task2,
+      task3 = task3,
+      task4 = task4,
+      task5 = task5,
+      seed = all_data$seed,
+      method = all_data$method,
+      n = rep(n, length(max_per_row)),
+      similarity = rep(similarity, length(max_per_row))
+    )
+    save(output, file = output_file)
+    all_combined <- rbind(all_combined, output)
+  }
+  
+}
+files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+
+all_data <- do.call(rbind, lapply(files, function(file) {
+  result <- load(file)
+  result <- get(result)
+  prepare_data(result, file)
+}))
+all_data <- all_data %>%
+  mutate(
+    # Extract 'n' (e.g., 200 from "mse_n_200_simi_0.4")
+    n = as.numeric(gsub(".*_n_(\\d+)_.*", "\\1", Dataset)),
+    
+    # Extract 'similarity' (e.g., 0.4 from "mse_n_200_simi_0.4")
+    similarity = as.numeric(gsub(".*_simi_(\\d+(?:\\.\\d+)?).*", "\\1", Dataset))
+  )
+all_data <- all_data %>%
+  rename(Method = Var2) |> filter(n!=500)
+all_data
+
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
+  similarity = function(value) paste0("" ,value)  # Format 'similarity' as "similarity = ..."
+)
+all_data$Method = "Global Fine-tuned Late Fusion with Nuisance"
+```
+
+```{r}
+all_data <- rbind(all_data, original, original2)
+all_data$Method <- factor(all_data$Method,
+                          levels = c("Global Fine-tuned Late Fusion with Nuisance",
+                                     "Late Fusion with Nuisance",
+                                     "Late Fusion with Nuisnace (more parameters)"
+                          ))
+all_data = all_data |> filter(similarity %in% c(0, 0.2, 0.4, 0.6, 0.8, 1))
+p=ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2 ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +  # Apply custom labeller
+  labs(
+    x = "Method", y = "Mean MSE"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center the title
+    #axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_blank(),
+    legend.position = "None",
+    #strip.text = element_text(size = 6, angle = 20)
+    axis.title.y = element_text(size = 20),
+    strip.text = element_text(size = 15),
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 15),
+  ) #+ scale_y_log10(limits = c(1e-5, NA))
+ggsave(
+  filename = "fitune_method_comparison.pdf",  # Specify the filename
+  plot = p,                        # Specify the plot object
+  width = 10, height = 8,             # Adjust dimensions as needed
+  dpi = 300                           # Set the resolution
+)
+p
+```
+
+```{r}
+library(data.table)
+
+BASE <- "/semi-transfer-learning"
+
+dims  <- c(8)
+ns    <- c(100, 200)
+simis <- seq(0, 1, by = 0.1)
+
+fmt_simi <- function(x) {
+  s <- sprintf("%.1f", x)            # "1.0", "0.4"
+  sub("\\.0$", "", s)                # -> "1", "0.4"
+}
+
+all_rows <- list()
+
+for (dim in dims) {
+  root <- file.path(BASE, sprintf("results_finetune_new_time%d", dim))
+
+  for (n in ns) {
+    for (simi in simis) {
+
+      folder <- file.path(root, sprintf("mse_n_%d_simi_%s", n, fmt_simi(simi)))
+      if (!dir.exists(folder)) next
+
+      files <- list.files(folder, pattern = "^time_seed_.*\\.csv$", full.names = TRUE)
+      if (length(files) == 0) next
+
+      for (f in files) {
+        dt <- fread(f)
+
+        all_rows[[length(all_rows)+1]] <- data.table(
+          dim = dim, n = n, similarity = simi,
+          Method = "Global Fine-tuned",
+          Value = as.numeric(dt$runtime_sec)
+        )
+      }
+    }
+  }
+}
+
+all_data <- rbindlist(all_rows, fill = TRUE)
+
+```
+
+```{r}
+library(data.table)
+
+BASE <- "/semi-transfer-learning"
+
+dims  <- c(8)
+ns    <- c(100, 200)
+simis <- seq(0, 1, by = 0.1)
+lambda_lens <- c(100, 200)
+fmt_simi <- function(x) {
+  s <- sprintf("%.1f", x)            # "1.0", "0.4"
+  sub("\\.0$", "", s)                # -> "1", "0.4"
+}
+
+all_rows <- list()
+
+for (lambda_len in lambda_lens) {
+  root <- file.path(BASE, sprintf("time_6_dim_8_w_lambda_len"))
+
+  for (n in ns) {
+    for (simi in simis) {
+
+      folder <- file.path(root, sprintf("_n_%d_simi_%slambda_len%d", n, fmt_simi(simi), lambda_len))
+      if (!dir.exists(folder)) next
+
+      files <- list.files(folder, pattern = "^time_data_seed_.*\\.csv$", full.names = TRUE)
+      if (length(files) == 0) next
+
+      for (f in files) {
+        dt <- fread(f)
+
+        all_rows[[length(all_rows)+1]] <- data.table(
+          dim = dim, n = n, similarity = simi,
+          Method = paste0("implemented_", lambda_len),
+          Value = as.numeric(dt$time_nonpar_transfer)
+        )
+      }
+    }
+  }
+}
+all_data_implemented <- rbindlist(all_rows, fill = TRUE)
+keep_simi <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+
+all_data_implemented <- all_data_implemented[
+  round(similarity, 1) %in% keep_simi
+]
+```
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(scales)
+
+keep_simi <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+
+# Combine + convert to minutes
+rt <- rbindlist(list(all_data, all_data_implemented), fill = TRUE)
+
+rt[, similarity := round(as.numeric(similarity), 1)]
+rt <- rt[similarity %in% keep_simi]
+
+# Value is currently seconds → minutes
+rt[, Value := as.numeric(Value) / 60]
+
+# Make sure facet vars exist
+# If dim missing in some table, set it:
+if (!"dim" %in% names(rt)) rt[, dim := 8]
+rt[, dim := as.factor(dim)]
+rt[, n := as.factor(n)]
+
+rt[, Method := factor(Method)]
+
+rt[, Method := as.character(Method)]
+
+rt[, Method := fifelse(
+  Method == "implemented_100",
+  "Implemented",
+  fifelse(
+    Method == "implemented_200",
+    "Implemented with More Parameters",
+    Method
+  )
+)]
+
+
+# Control legend order
+rt[, Method := factor(Method,
+                      levels = c("Global Fine-tuned",
+                                 "Implemented",
+                                 "Implemented with More Parameters"))]
+
+p_runtime_box <- ggplot(rt, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(
+    outlier.shape = NA,
+    coef = 2,
+    width = 0.65
+  ) +
+   facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y")  +
+  #facet_grid( ~ n, scales = "free_y") +
+  labs(x = NULL, y = "Time (minutes)") +
+  scale_y_log10(expand = expansion(mult = c(0.02, 0.02)))+
+  theme_minimal(base_size = 18) +
+  theme(
+    # remove x text completely
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+
+    # enlarge everything
+    axis.title.y = element_text(size = 20),
+    strip.text = element_text(size = 15),
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 15),
+
+    legend.position = "bottom"
+  )
+
+p_runtime_box
+
+ggsave(
+  filename = "runtime_boxplot.pdf",
+  plot = p_runtime_box,
+  width = 14,
+  height = 10,
+  dpi = 300
+)
+rt_summary <- rt[, {
+  q1  <- quantile(Value, 0.25, na.rm = TRUE)
+  q3  <- quantile(Value, 0.75, na.rm = TRUE)
+  med <- median(Value, na.rm = TRUE)
+  iqr <- q3 - q1
+  
+  lower <- max(min(Value, na.rm = TRUE), q1 - 1.5 * iqr)
+  upper <- min(max(Value, na.rm = TRUE), q3 + 1.5 * iqr)
+  
+  list(
+    median = med,
+    lower = lower,
+    upper = upper
+  )
+}, by = .(Method, n, similarity)]
+p_runtime_bar <- ggplot(rt_summary, aes(x = Method, y = median, fill = Method)) +
+  geom_col(width = 0.7) +
+  geom_errorbar(
+    aes(ymin = lower, ymax = upper),
+    width = 0.2,
+    linewidth = 0.7
+  ) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(x = NULL, y = "Time (minutes)") +
+  scale_y_log10(expand = expansion(mult = c(0.02, 0.02))) +
+  theme_minimal(base_size = 18) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_text(size = 20),
+    strip.text = element_text(size = 15),
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 15),
+    legend.position = "bottom"
+  )
+p_runtime_bar
+```
+
+
+
+```{r}
+library(gridExtra)
+
+
+combined <- grid.arrange(p, p_runtime_bar, ncol = 1)
+
+ggsave("semi-transfer-learning/tuning_strategy_compare.pdf", combined, width = 10, height = 8)
+```
+
