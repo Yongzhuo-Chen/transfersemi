@@ -1,12 +1,45 @@
 Package: TransferSemi
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Transfer Learning for Semiparametric Models
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Authors@R: person("Anonymous",
+    email = "anonymous@example.com", role = c("aut", "cre"))
+Author: Anonymous [aut, cre]
+Maintainer: Anonymous <anonymous@example.com>
+Description: Implements the transfer-learning estimators used by this
+    repository for partially linear models, sufficient dimension reduction,
+    and conditional average treatment effect analyses. Methods include
+    parametric, nonparametric, and neural-network routines for combining
+    information across multiple sites.
+License: MIT + file LICENSE
 Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    gglasso,
+    glmnet,
+    MAVE,
+    Matrix,
+    np,
+    pracma,
+    splines,
+    stats,
+    torch
+Suggests:
+    cowplot,
+    data.table,
+    dplyr,
+    forcats,
+    ggplot2,
+    gridExtra,
+    Hmisc,
+    knitr,
+    patchwork,
+    reshape2,
+    rmarkdown,
+    scales,
+    stringr,
+    tibble,
+    tidyr
+SystemRequirements: LibTorch; LibLantern
 NeedsCompilation: no
-Packaged: 2024-10-16 01:49:41 UTC; anonymous

@@ -1,31 +1,31 @@
-
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-lapply(files, source)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) != 1L) stop("Run this simulation with Rscript.", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+source(file.path(dirname(script_path), "reproducibility_helpers.R"))
+repo_root <- simulation_repo_root()
 # multi source partial linear model
-library(glmnet)
 run_simulation <- function(seed, n, similarity, dim, lambda_length){
   
 ntask <- 5
 n <- n # vary this from 200 to 500
 p <- dim
 similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
-set.seed(seed)
+cpu_device <- seed_reproducibly(seed)
 
-dictionary_mse = paste0("../../semi-transfer-learning/results_11_dim", dim,"/mse_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
-if (!file.exists(dictionary_mse)) {
-  dir.create(dictionary_mse, recursive = TRUE)
-}
-filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-dictionary_estimate = paste0("../../semi-transfer-learning/results_11_dim", dim, "/est_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
-if (!file.exists(dictionary_estimate)) {
-  dir.create(dictionary_estimate, recursive = TRUE)
-}
-filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
-dictionary_time = paste0("../../semi-transfer-learning/results_11_dim", dim, "/_n_",n,"_simi_",similarity, "lambda_len", lambda_length)
-if (!file.exists(dictionary_time)) {
-  dir.create(dictionary_time, recursive = TRUE)
-}
+dictionary_mse <- ensure_output_dir(file.path(
+  output_root, paste0("results_11_dim", dim),
+  paste0("mse_n_", n, "_simi_", similarity, "lambda_len", lambda_length)
+))
+filename <- file.path(dictionary_mse, paste0("mse_data_seed_", seed, ".rds"))
+dictionary_estimate <- ensure_output_dir(file.path(
+  output_root, paste0("results_11_dim", dim),
+  paste0("est_n_", n, "_simi_", similarity, "lambda_len", lambda_length)
+))
+filename_estimates <- file.path(dictionary_estimate, paste0("estimate_data_seed_", seed, ".rds"))
+dictionary_time <- ensure_output_dir(file.path(
+  output_root, paste0("results_11_dim", dim),
+  paste0("_n_", n, "_simi_", similarity, "lambda_len", lambda_length)
+))
 #if (file.exists(filename)) {
 #  cat("File for seed", seed, "already exists. Skipping this seed.\n")
 #  return(NULL)  
@@ -93,7 +93,11 @@ for (index in 1:ntask){
   #X_list is D from source data
   #Z_list is X from source data
   #y_list is Y from source data
-  fit_src <- fit_sources(proc$X_list, proc$Z_list, proc$y_list, hidden = c(5,3), p = 1, epochs = 9000)
+  fit_src <- fit_sources(
+    proc$X_list, proc$Z_list, proc$y_list,
+    hidden = c(5,3), p = 1, epochs = 9000,
+    device = cpu_device
+  )
   fit_tgt <- fit_target_ols(fit_src, proc$X0, proc$Z0, proc$y0)
   Net_transfer[[index]] <- fit_tgt$coef[1]
   print("NET TRANSFER")
@@ -675,7 +679,8 @@ tune_C1C2_pERM_stage1 <- function(X_list, y_list,
       C1 = c1, C2 = c2,
       lr = lr, max_iter = max_iter, tol = tol,
       link = link, info = info,
-      X_test_list = X_val_list
+      X_test_list = X_val_list,
+      device = cpu_device
     )
 
     losses <- vapply(seq_len(ntask), function(t) {
@@ -731,7 +736,8 @@ tune_C1C2_pERM_stage2 <- function(X_list, y_list,
       C1 = c1, C2 = c2,
       lr = lr, max_iter = max_iter, tol = tol,
       link = link, info = info,
-      X_test_list = X_val_list
+      X_test_list = X_val_list,
+      device = cpu_device
     )
 
     losses <- vapply(seq_len(ntask), function(t) {
@@ -807,7 +813,8 @@ for (split_index in 1:number_split) {
     r = r_fixed, nbasis = nbasis_fixed,
     C1 = bestD$C1, C2 = bestD$C2,
     info = TRUE, link = "linear",
-    X_test_list = X_te_list
+    X_test_list = X_te_list,
+    device = cpu_device
   )
 
   for (t in 1:ntask) D_given_Xs[[t]][te] <- fitD$test_preds[[t]]
@@ -835,7 +842,8 @@ for (split_index in 1:number_split) {
     r = r_fixed, nbasis = nbasis_fixed,
     C1 = bestY$C1, C2 = bestY$C2,
     info = TRUE, link = "linear",
-    X_test_list = X_te_list
+    X_test_list = X_te_list,
+    device = cpu_device
   )
 
   for (t in 1:ntask) Y_given_Xs[[t]][te] <- fitY$test_preds[[t]]
@@ -884,7 +892,8 @@ for (split_index in 1:number_split) {
     peRMdata,
     r = 1, nbasis = 1,
     info = TRUE, link = "linear",
-    C1 = best2$C1, C2 = best2$C2
+    C1 = best2$C1, C2 = best2$C2,
+    device = cpu_device
   )
 
   # keep your exact update logic + types
@@ -1228,33 +1237,24 @@ time <- list(
 )
 
 # save time as csv file
-time_filename <- paste0(dictionary_time, "/time_data_seed_", seed, ".csv")
+time_filename <- file.path(dictionary_time, paste0("time_data_seed_", seed, ".csv"))
 write.csv(time, file = time_filename, row.names = FALSE)
 }
 
 
-library(parallel)
-library(pbmcapply)
-# Number of simulations
-num_simulations <- 100
-seeds <- 1:100
-
-num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-if (num_cores <= 1) {  # Fallback if SLURM_CPUS_PER_TASK is not set
-  num_cores <- detectCores()  # Detect all available cores on the node
-}
-
-cat("Number of cores used:", num_cores, "\n")
-
-
-args <- commandArgs(trailingOnly = TRUE)
-n <- as.numeric(args[1])         # First argument passed
-similarity <- as.numeric(args[2]) # Second argument passed
-seed <- as.numeric(args[3])
-dim <- as.numeric(args[4])
-lambda_length = as.numeric(args[5])
+usage <- "Rscript simulation/test_PLM.R <n> <similarity> <seed> <dim> <lambda_length>"
+cli <- parse_numeric_cli(c("n", "similarity", "seed", "dim", "lambda_length"), usage)
+validate_common_simulation_args(cli, minimum_dim = 4L)
+require_integer_argument(cli$lambda_length, "lambda_length", minimum = 2L)
+n <- cli$n
+similarity <- cli$similarity
+seed <- cli$seed
+dim <- cli$dim
+lambda_length <- cli$lambda_length
+output_root <- simulation_output_root(repo_root)
+source_transfersemi(repo_root)
+library(glmnet)
 cat("The dim is", dim, "\n")
 cat(seed, n, similarity, dim)
 cat("The dim is", dim, "\n")
 run_simulation(seed, n, similarity, dim, lambda_length)
-

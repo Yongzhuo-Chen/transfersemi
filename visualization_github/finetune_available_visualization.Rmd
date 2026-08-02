@@ -1,0 +1,173 @@
+---
+title: "Fine-tuning results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+
+repo_root <- find_repo_root()
+result_dir <- file.path(
+  repo_root, "semi-transfer-learning", "results_finetune_new8"
+)
+time_dir <- file.path(
+  repo_root, "semi-transfer-learning", "results_finetune_new_time8"
+)
+derived_dir <- file.path(
+  repo_root, "outputs", "derived", "finetune_available_visualization"
+)
+figure_dir <- file.path(
+  repo_root, "outputs", "figures", "finetune_available_visualization"
+)
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+
+library(ggplot2)
+```
+
+## Fine-tuning MSE across seeds
+
+```{r mse}
+mse_files <- list.files(
+  result_dir,
+  pattern = "^mse_data_seed_[0-9]+[.]rds$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+if (length(mse_files) == 0L) {
+  stop("No fine-tuning MSE files were found in ", result_dir, call. = FALSE)
+}
+
+read_mse <- function(path) {
+  value <- readRDS(path)
+  task_columns <- grep("^Task[0-9]+$", names(value), value = TRUE)
+  if (length(task_columns) == 0L) {
+    stop("No task columns found in ", path, call. = FALSE)
+  }
+
+  setting <- basename(dirname(path))
+  matched <- regexec("^mse_n_([0-9]+)_simi_(.+)$", setting)
+  parts <- regmatches(setting, matched)[[1]]
+  if (length(parts) != 3L) stop("Unrecognized setting directory: ", setting)
+
+  data.frame(
+    seed = as.integer(sub("^mse_data_seed_([0-9]+)[.]rds$", "\\1", basename(path))),
+    n = as.integer(parts[[2]]),
+    similarity = as.numeric(parts[[3]]),
+    method = if (is.null(rownames(value))) {
+      "Global fine-tuned late fusion with nuisance"
+    } else {
+      rownames(value)[[1]]
+    },
+    mean_mse = mean(as.numeric(value[1, task_columns]), na.rm = TRUE),
+    maximum_mse = max(as.numeric(value[1, task_columns]), na.rm = TRUE)
+  )
+}
+
+mse_results <- do.call(rbind, lapply(mse_files, read_mse))
+mse_results$method[mse_results$method == "NonPara_Transfer_Tuned"] <-
+  "Global fine-tuned late fusion with nuisance"
+mse_results <- mse_results[order(
+  mse_results$n, mse_results$similarity, mse_results$seed
+), ]
+write.csv(
+  mse_results,
+  file.path(derived_dir, "fine_tuning_mse_by_seed.csv"),
+  row.names = FALSE
+)
+
+mean_plot <- ggplot(
+  mse_results,
+  aes(x = factor(similarity), y = mean_mse, fill = method)
+) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_wrap(~n, scales = "free_y", labeller = label_both) +
+  labs(x = "Similarity", y = "Mean task MSE", fill = "Method") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+ggsave(
+  file.path(figure_dir, "fine_tuning_mean_mse.pdf"),
+  mean_plot,
+  width = 12,
+  height = 6
+)
+mean_plot
+
+maximum_plot <- ggplot(
+  mse_results,
+  aes(x = factor(similarity), y = maximum_mse, fill = method)
+) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_wrap(~n, scales = "free_y", labeller = label_both) +
+  labs(x = "Similarity", y = "Maximum task MSE", fill = "Method") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+ggsave(
+  file.path(figure_dir, "fine_tuning_maximum_mse.pdf"),
+  maximum_plot,
+  width = 12,
+  height = 6
+)
+maximum_plot
+```
+
+## Fine-tuning runtime across seeds
+
+```{r runtime}
+time_files <- list.files(
+  time_dir,
+  pattern = "^time_seed_[0-9]+[.]csv$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+if (length(time_files) == 0L) {
+  stop("No fine-tuning runtime files were found in ", time_dir, call. = FALSE)
+}
+
+runtime_results <- do.call(rbind, lapply(time_files, function(path) {
+  value <- read.csv(path, stringsAsFactors = FALSE)
+  required <- c("seed", "n", "similarity", "dim", "runtime_sec")
+  missing <- setdiff(required, names(value))
+  if (length(missing)) {
+    stop("Missing runtime columns in ", path, ": ", paste(missing, collapse = ", "))
+  }
+  value[, required, drop = FALSE]
+}))
+runtime_results$runtime_minutes <- runtime_results$runtime_sec / 60
+runtime_results <- runtime_results[order(
+  runtime_results$n, runtime_results$similarity, runtime_results$seed
+), ]
+write.csv(
+  runtime_results,
+  file.path(derived_dir, "fine_tuning_runtime_by_seed.csv"),
+  row.names = FALSE
+)
+
+runtime_plot <- ggplot(
+  runtime_results,
+  aes(x = factor(similarity), y = runtime_minutes)
+) +
+  geom_boxplot(outlier.shape = NA, coef = 2, fill = "steelblue") +
+  facet_wrap(~n, scales = "free_y", labeller = label_both) +
+  labs(x = "Similarity", y = "Runtime (minutes)") +
+  theme_minimal(base_size = 14)
+ggsave(
+  file.path(figure_dir, "fine_tuning_runtime.pdf"),
+  runtime_plot,
+  width = 12,
+  height = 6
+)
+runtime_plot
+```

@@ -1,26 +1,73 @@
-source("prediction_per_site.R")
+find_repo_root <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  script_arg <- grep("^--file=", args, value = TRUE)
+  starts <- getwd()
+  if (length(script_arg) > 0) {
+    script_path <- sub("^--file=", "", script_arg[[1]])
+    starts <- c(dirname(normalizePath(script_path, mustWork = TRUE)), starts)
+  }
 
+  for (start in unique(starts)) {
+    current <- normalizePath(start, mustWork = TRUE)
+    repeat {
+      if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+          dir.exists(file.path(current, "real_data"))) {
+        return(current)
+      }
+      parent <- dirname(current)
+      if (identical(parent, current)) break
+      current <- parent
+    }
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
 
-library(glmnet) 
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 1L || !grepl("^[0-9]+$", args[[1]])) {
+  stop(
+    "Usage: Rscript real_data/RealDataAnalysis.R <positive-integer-seed>",
+    call. = FALSE
+  )
+}
+seed <- as.integer(args[[1]])
+if (is.na(seed) || seed < 1L) {
+  stop("The seed must be a positive integer.", call. = FALSE)
+}
+
+repo_root <- find_repo_root()
+real_data_dir <- file.path(repo_root, "real_data")
+package_r_dir <- file.path(repo_root, "TransferSemi", "R")
+result_override <- Sys.getenv("TRANSFERSEMI_REAL_OUTPUT_DIR", unset = "")
+if (nzchar(result_override)) {
+  expanded_override <- path.expand(result_override)
+  is_absolute <- grepl("^(/|[A-Za-z]:[/\\\\]|\\\\\\\\)", expanded_override)
+  result_dir <- if (is_absolute) expanded_override else file.path(repo_root, expanded_override)
+} else {
+  result_dir <- file.path(real_data_dir, "result_real_data")
+}
+
+source(file.path(real_data_dir, "prediction_per_site.R"))
+
+library(glmnet)
 eval_function <- function(seed){
 set.seed(seed)
-folder_path <- "result_real_data"
+if (requireNamespace("torch", quietly = TRUE)) {
+  torch::torch_manual_seed(seed)
+}
+folder_path <- result_dir
 if (!dir.exists(folder_path)) {
-  dir.create(folder_path, recursive = TRUE)
+  dir.create(folder_path, recursive = TRUE, showWarnings = FALSE)
   message("Folder created: ", folder_path)
 } else {
   message("Folder already exists: ", folder_path)
 }
-file_name <- paste0(folder_path, "/", seed, ".RData")
+file_name <- file.path(folder_path, paste0(seed, ".RData"))
 
 
 
 
-original_wd <- getwd()
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-a=lapply(files, source)
-setwd(original_wd)
+files <- list.files(package_r_dir, pattern = "\\.R$", full.names = TRUE)
+a <- lapply(files, source)
 #convert_age_one_hot <- function(combined){
 #  age_quantiles <- quantile(combined$age, probs = seq(0, 1, 0.25), na.rm = TRUE)
 #  combined$age_quantile <- cut(
@@ -125,8 +172,8 @@ split_into_tasks <- function(data, n_tasks = 5) {
 
 
 
-cape <- read.csv("cape_pseudo.csv")
-ninr <- read.csv("ninr_pseudo.csv")
+cape <- read.csv(file.path(real_data_dir, "cape_pseudo.csv"))
+ninr <- read.csv(file.path(real_data_dir, "ninr_pseudo.csv"))
 cape_copy <- cape[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
 ninr_copy <- ninr[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
 cape_train_test <- split_data(cape_copy)
@@ -774,8 +821,8 @@ for (index in 1:ntask){
 # ----------------------------
 
 # 1) load + same column drops
-cape <- read.csv("cape_pseudo.csv")
-ninr <- read.csv("ninr_pseudo.csv")
+cape <- read.csv(file.path(real_data_dir, "cape_pseudo.csv"))
+ninr <- read.csv(file.path(real_data_dir, "ninr_pseudo.csv"))
 
 
 cape_copy <- cape[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
@@ -1301,10 +1348,5 @@ save(res, file = file_name)
 
 
 
-args <- commandArgs(trailingOnly = TRUE)
-seed <- as.numeric(args[1])         # First argument passed
-
 cat(seed)
 eval_function(seed)
-
-

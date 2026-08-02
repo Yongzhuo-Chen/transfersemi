@@ -1,6 +1,4 @@
 
-library(splines)
-
 gradient_loss <- function(X, y, b, link = "linear") {
   z <- X %*% b
   if (link == "logistic") {
@@ -40,7 +38,6 @@ pgd_v <- function(X, y, link, lbd, w, v, penalty = "new", eta = 0.01, T = 10) {
 # ----------------------------
 # Vanilla ARMUL training
 # ----------------------------
-library(splines)
 vanilla_train <- function(X_list, y_list, link = "linear", penalty = "new",
                           lbd = NULL, eta_global = 0.01, eta_local = 0.01,
                           T_global = 100, T_local = 1,
@@ -209,4 +206,3 @@ vanilla_predict <- function(models, X_test_list, task_id, link = "linear") {
 #head(y_pred)
 #y_true - y_pred
 #mean((y_true - y_pred)^2)
-

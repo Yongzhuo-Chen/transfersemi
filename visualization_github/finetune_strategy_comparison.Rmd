@@ -1,0 +1,346 @@
+---
+title: "Fine-tuning strategy comparison"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE, message = TRUE)
+
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+
+repo_root <- find_repo_root()
+base_dir <- file.path(repo_root, "semi-transfer-learning")
+implemented_mse_dir <- file.path(base_dir, "results_5_dim8")
+global_mse_dir <- file.path(base_dir, "results_finetune_new8")
+implemented_time_dir <- file.path(base_dir, "results_11_dim8")
+global_time_dir <- file.path(base_dir, "results_finetune_new_time8")
+derived_dir <- file.path(
+  repo_root, "outputs", "derived", "finetune_strategy_comparison"
+)
+figure_dir <- file.path(
+  repo_root, "outputs", "figures", "finetune_strategy_comparison"
+)
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+
+required_dirs <- c(
+  implemented_mse_dir, global_mse_dir,
+  implemented_time_dir, global_time_dir
+)
+missing_dirs <- required_dirs[!dir.exists(required_dirs)]
+if (length(missing_dirs)) {
+  stop("Missing required result directories: ", paste(missing_dirs, collapse = ", "))
+}
+
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+
+keep_similarity <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
+implemented_label <- "Late Fusion with Nuisance"
+global_label <- "Global Fine-tuned Late Fusion with Nuisance"
+more_parameters_label <- "Late Fusion with Nuisance (more parameters)"
+custom_labeller <- labeller(
+  n = function(value) paste0("n = ", value),
+  similarity = function(value) value
+)
+
+extract_seed <- function(path, prefix) {
+  pattern <- paste0("^", prefix, "_([0-9]+).*$")
+  as.integer(sub(pattern, "\\1", basename(path)))
+}
+
+read_mse_collection <- function(root, setting_pattern, method_label) {
+  files <- list.files(
+    root,
+    pattern = "^mse_data_seed_[0-9]+[.]rds$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  rows <- lapply(files, function(path) {
+    setting <- basename(dirname(path))
+    parts <- regmatches(setting, regexec(setting_pattern, setting, perl = TRUE))[[1]]
+    if (length(parts) != 3L) return(NULL)
+
+    value <- readRDS(path)
+    task_columns <- grep("^Task[0-9]+$", names(value), value = TRUE)
+    method_row <- match("NonPara_Transfer_Tuned", rownames(value))
+    if (!length(task_columns) || is.na(method_row)) {
+      stop("Expected NonPara_Transfer_Tuned task results in ", path, call. = FALSE)
+    }
+    task_mse <- as.numeric(value[method_row, task_columns, drop = TRUE])
+    data.frame(
+      seed = extract_seed(path, "mse_data_seed"),
+      n = as.integer(parts[[2]]),
+      similarity = as.numeric(parts[[3]]),
+      Method = method_label,
+      mean_mse = mean(task_mse, na.rm = TRUE),
+      maximum_mse = max(task_mse, na.rm = TRUE),
+      source_file = file.path(basename(root), setting, basename(path)),
+      stringsAsFactors = FALSE
+    )
+  })
+  rows <- Filter(Negate(is.null), rows)
+  if (!length(rows)) stop("No matching MSE files found in ", root, call. = FALSE)
+  result <- do.call(rbind, rows)
+  result[is.finite(result$mean_mse) & is.finite(result$maximum_mse), ]
+}
+
+read_runtime_collection <- function(root, file_pattern, setting_pattern,
+                                    runtime_column, method_label) {
+  files <- list.files(
+    root,
+    pattern = file_pattern,
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  rows <- lapply(files, function(path) {
+    setting <- basename(dirname(path))
+    parts <- regmatches(setting, regexec(setting_pattern, setting, perl = TRUE))[[1]]
+    if (length(parts) != 3L) return(NULL)
+
+    value <- read.csv(path, stringsAsFactors = FALSE)
+    if (!runtime_column %in% names(value)) {
+      stop("Missing ", runtime_column, " in ", path, call. = FALSE)
+    }
+    prefix <- if (grepl("^time_seed", basename(path))) "time_seed" else "time_data_seed"
+    data.frame(
+      seed = extract_seed(path, prefix),
+      n = as.integer(parts[[2]]),
+      similarity = as.numeric(parts[[3]]),
+      Method = method_label,
+      runtime_minutes = as.numeric(value[[runtime_column]][[1]]) / 60,
+      source_file = file.path(basename(root), setting, basename(path)),
+      stringsAsFactors = FALSE
+    )
+  })
+  rows <- Filter(Negate(is.null), rows)
+  if (!length(rows)) stop("No matching runtime files found in ", root, call. = FALSE)
+  result <- do.call(rbind, rows)
+  result[is.finite(result$runtime_minutes) & result$runtime_minutes > 0, ]
+}
+```
+
+The attached notebook also refers to `results_6_dim8/` and lambda-length-200
+timing results for an “Implemented with More Parameters” series. Those inputs
+are not present in this repository, so that series is not fabricated or
+silently replaced. All figures supported by the available implemented and
+global fine-tuned results are rendered below.
+
+## MSE inputs
+
+```{r load-mse}
+implemented_mse <- read_mse_collection(
+  implemented_mse_dir,
+  "^mse_n_([0-9]+)_simi_([0-9.]+)$",
+  implemented_label
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
+global_mse <- read_mse_collection(
+  global_mse_dir,
+  "^mse_n_([0-9]+)_simi_([0-9.]+)$",
+  global_label
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
+write.csv(implemented_mse, file.path(derived_dir, "implemented_mse_by_seed.csv"), row.names = FALSE)
+write.csv(global_mse, file.path(derived_dir, "global_finetuned_mse_by_seed.csv"), row.names = FALSE)
+
+data.frame(
+  Method = c(global_label, implemented_label, more_parameters_label),
+  Available_records = c(nrow(global_mse), nrow(implemented_mse), 0L),
+  Input = c(
+    "semi-transfer-learning/results_finetune_new8",
+    "semi-transfer-learning/results_5_dim8",
+    "results_6_dim8 is not present"
+  )
+)
+```
+
+## Implemented-method mean MSE
+
+```{r implemented-mse-plot, fig.width=10, fig.height=12}
+p_implemented_mse <- ggplot(implemented_mse, aes(Method, mean_mse, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  scale_y_log10() +
+  labs(x = NULL, y = "Mean MSE") +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    legend.position = "none", strip.text = element_text(size = 12)
+  )
+ggsave(file.path(figure_dir, "mean_mse_plot.pdf"), p_implemented_mse,
+       width = 10, height = 12, dpi = 300)
+p_implemented_mse
+```
+
+## Global fine-tuned mean MSE
+
+```{r global-mse-plot, fig.width=10, fig.height=6}
+p_global_mse <- ggplot(global_mse, aes(Method, mean_mse, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  scale_y_log10() +
+  labs(x = NULL, y = "Mean MSE") +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    legend.position = "none", strip.text = element_text(size = 12)
+  )
+ggsave(file.path(figure_dir, "global_finetuned_mean_mse.pdf"), p_global_mse,
+       width = 10, height = 6, dpi = 300)
+p_global_mse
+```
+
+## Fine-tuning method comparison
+
+Only common `(n, similarity, seed)` settings are compared so that the
+implemented method does not receive extra replications merely because more
+legacy files exist.
+
+```{r mse-comparison, fig.width=10, fig.height=8}
+common_mse_keys <- global_mse %>% select(seed, n, similarity) %>% distinct()
+implemented_mse_common <- implemented_mse %>%
+  inner_join(common_mse_keys, by = c("seed", "n", "similarity"))
+if (!nrow(implemented_mse_common)) {
+  stop("No common MSE settings exist between implemented and fine-tuned results.")
+}
+mse_comparison <- bind_rows(global_mse, implemented_mse_common) %>%
+  mutate(Method = factor(
+    Method,
+    levels = c(global_label, implemented_label, more_parameters_label)
+  ))
+write.csv(mse_comparison,
+          file.path(derived_dir, "finetune_method_comparison_by_seed.csv"),
+          row.names = FALSE)
+
+p_mse_comparison <- ggplot(mse_comparison, aes(Method, mean_mse, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(x = NULL, y = "Mean MSE", fill = "Method") +
+  theme_minimal(base_size = 18) +
+  theme(
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    axis.title.y = element_text(size = 20), strip.text = element_text(size = 15),
+    legend.title = element_text(size = 16), legend.text = element_text(size = 13),
+    legend.position = "bottom"
+  )
+ggsave(file.path(figure_dir, "finetune_method_comparison.pdf"), p_mse_comparison,
+       width = 10, height = 8, dpi = 300)
+p_mse_comparison
+```
+
+## Runtime inputs
+
+```{r load-runtime}
+global_runtime <- read_runtime_collection(
+  global_time_dir,
+  "^time_seed_[0-9]+[.]csv$",
+  "^mse_n_([0-9]+)_simi_([0-9.]+)$",
+  "runtime_sec",
+  "Global Fine-tuned"
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
+implemented_runtime <- read_runtime_collection(
+  implemented_time_dir,
+  "^time_data_seed_[0-9]+[.]csv$",
+  "^_n_([0-9]+)_simi_([0-9.]+)lambda_len100$",
+  "time_nonpar_transfer",
+  "Implemented"
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
+common_runtime_keys <- global_runtime %>% select(seed, n, similarity) %>% distinct()
+implemented_runtime_common <- implemented_runtime %>%
+  inner_join(common_runtime_keys, by = c("seed", "n", "similarity"))
+if (!nrow(implemented_runtime_common)) {
+  stop("No common runtime settings exist between implemented and fine-tuned results.")
+}
+runtime_comparison <- bind_rows(global_runtime, implemented_runtime_common) %>%
+  mutate(Method = factor(
+    Method,
+    levels = c(
+      "Global Fine-tuned",
+      "Implemented",
+      "Implemented with More Parameters"
+    )
+  ))
+write.csv(runtime_comparison,
+          file.path(derived_dir, "runtime_comparison_by_seed.csv"),
+          row.names = FALSE)
+```
+
+```{r runtime-boxplot, fig.width=14, fig.height=10}
+p_runtime_box <- ggplot(runtime_comparison,
+                        aes(Method, runtime_minutes, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2, width = 0.65) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  scale_y_log10(expand = expansion(mult = c(0.02, 0.02))) +
+  labs(x = NULL, y = "Time (minutes)", fill = "Method") +
+  theme_minimal(base_size = 18) +
+  theme(
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    axis.title.y = element_text(size = 20), strip.text = element_text(size = 15),
+    legend.title = element_text(size = 16), legend.text = element_text(size = 13),
+    legend.position = "bottom"
+  )
+ggsave(file.path(figure_dir, "runtime_boxplot.pdf"), p_runtime_box,
+       width = 14, height = 10, dpi = 300)
+p_runtime_box
+```
+
+```{r runtime-barplot, fig.width=14, fig.height=10}
+runtime_summary <- runtime_comparison %>%
+  group_by(Method, n, similarity) %>%
+  summarise(
+    q1 = quantile(runtime_minutes, 0.25, na.rm = TRUE),
+    q3 = quantile(runtime_minutes, 0.75, na.rm = TRUE),
+    median = median(runtime_minutes, na.rm = TRUE),
+    minimum = min(runtime_minutes, na.rm = TRUE),
+    maximum = max(runtime_minutes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    lower = pmax(minimum, q1 - 1.5 * (q3 - q1)),
+    upper = pmin(maximum, q3 + 1.5 * (q3 - q1))
+  )
+
+p_runtime_bar <- ggplot(runtime_summary, aes(Method, median, fill = Method)) +
+  geom_col(width = 0.7) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2, linewidth = 0.7) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  scale_y_log10(expand = expansion(mult = c(0.02, 0.02))) +
+  labs(x = NULL, y = "Time (minutes)", fill = "Method") +
+  theme_minimal(base_size = 18) +
+  theme(
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    axis.title.y = element_text(size = 20), strip.text = element_text(size = 15),
+    legend.title = element_text(size = 16), legend.text = element_text(size = 13),
+    legend.position = "bottom"
+  )
+ggsave(file.path(figure_dir, "runtime_barplot.pdf"), p_runtime_bar,
+       width = 14, height = 10, dpi = 300)
+p_runtime_bar
+```
+
+## Combined comparison
+
+```{r combined-plot, fig.width=10, fig.height=12}
+combined <- gridExtra::arrangeGrob(p_mse_comparison, p_runtime_bar, ncol = 1)
+ggsave(file.path(figure_dir, "tuning_strategy_compare.pdf"), combined,
+       width = 10, height = 12, dpi = 300)
+gridExtra::grid.arrange(p_mse_comparison, p_runtime_bar, ncol = 1)
+```

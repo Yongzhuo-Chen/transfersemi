@@ -5,6 +5,24 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+repo_root <- find_repo_root()
+derived_dir <- file.path(repo_root, "outputs", "derived", "sim_visualization_CATE")
+figure_dir <- file.path(repo_root, "outputs", "figures", "sim_visualization_CATE")
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+cate_dir <- file.path(repo_root, "semi-transfer-learning", "CATE_dim8")
+final_combined_file <- file.path(derived_dir, "final_combined_results.RData")
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4")
 color <- c(
   "Baseline" = "#FFB3BA",                # soft pastel pink
@@ -39,13 +57,12 @@ custom_labeller <- labeller(
 )
 for (n in sample_sizes) {
   for (sim in similarity_values) {
-    folder_path <- paste0("../semi-transfer-learning/CATE_dim8/CATE_", 
-                        n, "_", sim)
+    folder_path <- file.path(cate_dir, paste0("CATE_", n, "_", sim))
     rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
     
-    seed_val <- 0
     for (file in rdata_files) {
-      seed_val <- seed_val + 1
+      seed_val <- suppressWarnings(as.integer(tools::file_path_sans_ext(basename(file))))
+      if (is.na(seed_val)) stop("Cannot infer a numeric seed from ", file, call. = FALSE)
       
       temp_env <- new.env()
       load(file, envir = temp_env)
@@ -71,11 +88,18 @@ for (n in sample_sizes) {
   }
 }
 
+if (length(combined_results) == 0L) {
+  stop("No CATE .RData inputs were found under ", cate_dir, call. = FALSE)
+}
 final_combined <- do.call(rbind, combined_results)
 
-save(final_combined, file = "../semi-transfer-learning/CATE_dim8/final_combined_results.RData")
-temp1 <- final_combined[final_combined$similarity == 0 & final_combined$n==100,]$Task1[grep("Baseline", rownames(final_combined))]
-temp2 <- final_combined[final_combined$similarity == 0 & final_combined$n==100,]$Task1[grep("Pooled", rownames(final_combined))]
+save(final_combined, file = final_combined_file)
+reference_scenario <- final_combined[
+  final_combined$similarity == 0 & final_combined$n == 100,
+  , drop = FALSE
+]
+temp1 <- reference_scenario$Task1[grepl("Baseline", rownames(reference_scenario))]
+temp2 <- reference_scenario$Task1[grepl("Pooled", rownames(reference_scenario))]
 
 median_temp1 <- median(temp1[is.finite(temp1)], na.rm = TRUE)
 median_temp2 <- median(temp2[is.finite(temp2)], na.rm = TRUE)
@@ -91,7 +115,7 @@ library(tibble)
 library(stringr)
 
 # Load the processed data
-load("../semi-transfer-learning/CATE_dim8/final_combined_results.RData")  # Adjust path if necessary
+load(final_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -194,7 +218,7 @@ p2 <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Method)) +
 
 # Save and display the plot
 ggsave(
-  filename = "../semi-transfer-learning/CATE_mean_mse_plot_no_outliers.pdf",
+  filename = file.path(figure_dir, "CATE_mean_mse_plot_no_outliers.pdf"),
   plot = p2,
   width = 10,
   height = 6,
@@ -213,7 +237,7 @@ print(p2)
 
 
 ```{r}
-load("../semi-transfer-learning/CATE_dim8/final_combined_results.RData")  # Adjust path if necessary
+load(final_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -322,7 +346,7 @@ p1 <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Method)) +
 
 # Save and display the plot
 ggsave(
-  filename = "../semi-transfer-learning/CATE_maximum_mse_plot_no_outliers.pdf",
+  filename = file.path(figure_dir, "CATE_maximum_mse_plot_no_outliers.pdf"),
   plot = p1,
   width = 10,
   height = 6,
@@ -339,10 +363,9 @@ p2 <- p2 + theme(text = element_text(size = 16))
 
 combined_plot <- cowplot::plot_grid(p2, p1, ncol = 1, align = "v")
 
-combined_plot <- plot_grid(p2, p1, ncol = 1, align = "v")
 combined_plot
 
-ggsave(filename = "combined_CATE_group_plot.pdf", 
+ggsave(filename = file.path(figure_dir, "combined_CATE_group_plot.pdf"),
        plot = combined_plot, 
        width = 12,    # Increase this value to make the plot wider
        height = 8,    # Adjust the height accordingly if needed
@@ -362,7 +385,7 @@ combined_plot <- cowplot::plot_grid(
 )
 
 ggsave(
-  "~/Pictures/combined_CATE_group_plot.pdf",
+  file.path(figure_dir, "combined_CATE_group_plot_large.pdf"),
   combined_plot,
   width = 12, height = 16, dpi = 300
 )
@@ -468,13 +491,13 @@ p <- ggplot(df_filtered, aes(x = task, y = similarity, fill = value)) +
     legend.title = element_text(size = 18),
     legend.text = element_text(size = 18),
     axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.spacing = unit(1.5, "lines"),
+    panel.spacing = grid::unit(1.5, "lines"),
     #legend.key.size = unit(1.8, "cm"),
     legend.position = "bottom"
   )
 
 ggsave(
-  "../semi-transfer-learning/CATE_heat_map_CATE.pdf",
+  file.path(figure_dir, "CATE_heat_map_CATE.pdf"),
   plot = p,
   width = 16,
   height = 9,
@@ -483,4 +506,3 @@ ggsave(
 
 p
 ```
-

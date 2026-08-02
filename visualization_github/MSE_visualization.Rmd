@@ -6,7 +6,72 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-work_dir = "../semi-transfer-learning/results_4_dim8"
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+repo_root <- find_repo_root()
+derived_dir <- file.path(repo_root, "outputs", "derived", "MSE_visualization")
+figure_dir <- file.path(repo_root, "outputs", "figures", "MSE_visualization")
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+visualization_data_file <- file.path(
+  repo_root,
+  "semi-transfer-learning",
+  "MSE_visualization_data.rds"
+)
+cate_combined_file <- file.path(derived_dir, "CATE_final_combined_results.RData")
+dr_combined_file <- file.path(derived_dir, "DR_final_combined_results.RData")
+
+if (!file.exists(visualization_data_file)) {
+  stop(
+    "The precomputed visualization data file is missing: ",
+    visualization_data_file,
+    call. = FALSE
+  )
+}
+
+visualization_data <- readRDS(visualization_data_file)
+required_components <- c("plm", "cate", "dr")
+missing_components <- setdiff(required_components, names(visualization_data))
+if (!is.list(visualization_data) || length(missing_components) > 0L) {
+  stop(
+    "MSE_visualization_data.rds must be a named list containing: ",
+    paste(required_components, collapse = ", "),
+    call. = FALSE
+  )
+}
+
+plm_results <- as.data.frame(visualization_data$plm)
+cate_results <- as.data.frame(visualization_data$cate)
+dr_results <- as.data.frame(visualization_data$dr)
+
+required_columns <- list(
+  plm = c("method", "seed", "n", "similarity", "mean_value", "max_value", paste0("task", 1:5)),
+  cate = c("Method", "seed", "n", "similarity", paste0("Task", 1:5)),
+  dr = c("Method", "seed", "n", "similarity", paste0("Task", 1:5))
+)
+for (component in required_components) {
+  missing_columns <- setdiff(
+    required_columns[[component]],
+    names(visualization_data[[component]])
+  )
+  if (length(missing_columns) > 0L) {
+    stop(
+      component,
+      " data are missing required columns: ",
+      paste(missing_columns, collapse = ", "),
+      call. = FALSE
+    )
+  }
+}
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4", "#D55E00")
 colors <- c(
   "Baseline" = "#FFB3BA",                # soft pastel pink
@@ -43,89 +108,38 @@ similarity_list = sm_similarity_list
 
 # Data Preprocess
 
+This notebook reads the supplied precomputed data in
+`semi-transfer-learning/MSE_visualization_data.rds`. Re-running the simulation
+jobs is not required to render the figures below.
+
 ```{r}
 library(dplyr)
-work_dir = "../semi-transfer-learning/results_5_dim8"
+all_combined <- plm_results
+plm_setting_files <- character()
 
-compare_work_dir = "../semi-transfer-learning/results_5_dim8"
-compare_work_dir="../results_11_dim8"
-methods_replace <- c("Net_Transfer", "ARMUL_lasso", "pERM_Transfer")
-methods_replace <- c("Pooled")
-
-read_folder_make_output <- function(folder_path, n, similarity) {
-
-  rds_files <- list.files(folder_path, pattern = "\\.rds$", full.names = TRUE)
-
-  read_and_add_metadata <- function(file) {
-    data <- tryCatch(readRDS(file), error = function(e) {
-      message(sprintf("Error reading %s: %s", file, e))
-      return(NULL)
-    })
-    if (is.null(data)) return(NULL)
-
-    data$method <- rownames(data)
-    data$dataset <- sub("\\.rds$", "", basename(file))
-    data$seed <- as.numeric(sub(".*_(\\d+)$", "\\1", data$dataset))
-    data
-  }
-
-  rds_data <- lapply(rds_files, read_and_add_metadata)
-  rds_data <- Filter(Negate(is.null), rds_data)
-  all_data <- do.call(rbind, rds_data)
-  all_data <- all_data[order(all_data$seed), ]
-
-  max_per_row    <- apply(all_data[, 1:5], 1, max)
-  mean_per_row   <- apply(all_data[, 1:5], 1, mean)
-  median_per_row <- apply(all_data[, 1:5], 1, median)
-
-  output <- data.frame(
-    max_value    = max_per_row,
-    mean_value   = mean_per_row,
-    median_value = median_per_row,
-    task1 = all_data[, 1],
-    task2 = all_data[, 2],
-    task3 = all_data[, 3],
-    task4 = all_data[, 4],
-    task5 = all_data[, 5],
-    seed  = all_data$seed,
-    method = all_data$method,
-    n = n,
-    similarity = similarity
-  )
-
-  output
-}
-
-# -------------------------
-# Main (replace 3 methods)
-# -------------------------
-setwd(work_dir)
-
-all_combined <- NULL
-
-for (n in c(100, 200)) {
-  for (similarity in similarity_list) {
-
-    folder_base <- file.path(work_dir, sprintf("mse_n_%d_simi_%s", n, similarity))
-    folder_cmp  <- file.path(compare_work_dir, sprintf("mse_n_%d_simi_%s%s", n, similarity, "lambda_len100"))
-
-    output_file <- sprintf("%s/mse_n_%d_simi_%.2f.RData", work_dir, n, similarity)
-
-    base_out <- read_folder_make_output(folder_base, n, similarity)
-    cmp_out  <- read_folder_make_output(folder_cmp,  n, similarity)
-
-    # replace: keep non-replaced methods from base, and take replaced methods from compare
-    final_out <- bind_rows(
-      base_out %>% filter(!(method %in% methods_replace)),
-      cmp_out  %>% filter(method %in% methods_replace)
-    ) %>%
-      arrange(method, seed)
-
-    # save back to the SAME file (in work_dir)
-    output <- final_out
+for (sample_n in c(100, 200)) {
+  for (similarity_value in similarity_list) {
+    output_file <- file.path(
+      derived_dir,
+      sprintf("mse_n_%d_simi_%.2f.RData", sample_n, similarity_value)
+    )
+    output <- plm_results %>%
+      filter(
+        .data$n == .env$sample_n,
+        near(.data$similarity, .env$similarity_value)
+      ) %>%
+      arrange(.data$method, .data$seed)
+    if (nrow(output) == 0L) {
+      stop(
+        "No saved PLM results for n = ",
+        sample_n,
+        ", similarity = ",
+        similarity_value,
+        call. = FALSE
+      )
+    }
     save(output, file = output_file)
-
-    all_combined <- bind_rows(all_combined, final_out)
+    plm_setting_files <- c(plm_setting_files, output_file)
   }
 }
 
@@ -135,20 +149,13 @@ for (n in c(100, 200)) {
 
 ```{r}
 
-setwd(work_dir)
 library(dplyr)
 library(reshape2)
-library(labelled)
 library(ggplot2)
-files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+files <- plm_setting_files
 for (file in files) {
   cat("Loaded:", file, "\n")
 }
-files <- list.files(pattern = "\\.RData$", full.names = TRUE)
-
-simi_val <- as.numeric(sub(".*simi_([0-9.]+)\\.RData$", "\\1", files))
-
-files <- files[simi_val %in% similarity_list]
 
 files
 
@@ -280,52 +287,19 @@ library(ggplot2)
 sample_sizes <- c(100, 200)
 similarity_values <- similarity_list
 
-# Initialize a list to store the loaded data frames
-combined_results <- list()
-
 custom_labeller <- labeller(
   n = function(value) paste0("n = ", value),  # Format 'n' as "n = ..."
   similarity = function(value) paste0("", value)  # Format 'similarity' as "similarity = ..."
 )
-for (n in sample_sizes) {
-  for (sim in similarity_values) {
-    folder_path <- paste0("../semi-transfer-learning/CATE_dim8/CATE_", 
-                        n, "_", sim)
-    rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
-    
-    seed_val <- 0
-    for (file in rdata_files) {
-      seed_val <- seed_val + 1
-      
-      temp_env <- new.env()
-      load(file, envir = temp_env)
-      
-      # Identify the data object (assumes it's called 'result' or the first non-'seed' object)
-      obj_names <- setdiff(ls(envir = temp_env), "seed")
-      if ("result" %in% obj_names) {
-        data_obj <- temp_env$result
-      } else {
-        data_obj <- get(obj_names[1], envir = temp_env)
-      }
-      
-      # Convert to a data frame, if needed
-      data_obj <- as.data.frame(data_obj)
-      
-      # Record n, similarity, and seed
-      data_obj$n <- n
-      data_obj$similarity <- sim
-      data_obj$seed <- seed_val
-      
-      combined_results[[length(combined_results) + 1]] <- data_obj
-    }
-  }
-}
+final_combined <- cate_results
 
-final_combined <- do.call(rbind, combined_results)
-
-save(final_combined, file = "../semi-transfer-learning/CATE_dim8/final_combined_results.RData")
-temp1 <- final_combined[final_combined$similarity == 0 & final_combined$n==100,]$Task1[grep("Baseline", rownames(final_combined))]
-temp2 <- final_combined[final_combined$similarity == 0 & final_combined$n==100,]$Task1[grep("Pooled", rownames(final_combined))]
+save(final_combined, file = cate_combined_file)
+reference_scenario <- final_combined[
+  final_combined$similarity == 0 & final_combined$n == 100,
+  , drop = FALSE
+]
+temp1 <- reference_scenario$Task1[grepl("Baseline", reference_scenario$Method)]
+temp2 <- reference_scenario$Task1[grepl("Pooled", reference_scenario$Method)]
 
 median_temp1 <- median(temp1[is.finite(temp1)], na.rm = TRUE)
 median_temp2 <- median(temp2[is.finite(temp2)], na.rm = TRUE)
@@ -341,7 +315,7 @@ library(tibble)
 library(stringr)
 
 # Load the processed data
-load("../semi-transfer-learning/CATE_dim8/final_combined_results.RData")  # Adjust path if necessary
+load(cate_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -439,7 +413,7 @@ CATE_Mean <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Method)
     strip.text = element_text(size = 8),
     legend.position = "bottom"
   ) +
-  scale_fill_manual(values = color
+  scale_fill_manual(values = colors
   ) +scale_y_log10()
 CATE_Mean
 
@@ -450,46 +424,9 @@ CATE_Mean
 
 ```{r}
 library(ggplot2)
-setwd("../semi-transfer-learning/DR_9_new")
-sample_sizes <- c(100, 200)
-similarity_values <- similarity_list
-combined_results <- list()
-for (n in sample_sizes) {
-  for (sim in similarity_values) {
-    folder_path <- paste0("../semi-transfer-learning/DR_9_new/mse_n_",n, "_simi_",sim)
-    rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
-    
-    seed_val <- 0
-    for (file in rdata_files) {
-      seed_val <- seed_val + 1
-      
-      temp_env <- new.env()
-      load(file, envir = temp_env)
-      
-      # Identify the data object (assumes it's called 'result' or the first non-'seed' object)
-      obj_names <- setdiff(ls(envir = temp_env), "seed")
-      if ("result" %in% obj_names) {
-        data_obj <- temp_env$result
-      } else {
-        data_obj <- get(obj_names[1], envir = temp_env)
-      }
-      
-      # Convert to a data frame, if needed
-      data_obj <- as.data.frame(data_obj)
-      
-      # Record n, similarity, and seed
-      data_obj$n <- n
-      data_obj$similarity <- sim
-      data_obj$seed <- seed_val
-      
-      combined_results[[length(combined_results) + 1]] <- data_obj
-    }
-  }
-}
+final_combined <- dr_results
 
-final_combined <- do.call(rbind, combined_results)
-
-save(final_combined, file = "final_combined_results.RData")
+save(final_combined, file = dr_combined_file)
 
 ```
 
@@ -501,9 +438,7 @@ library(ggplot2)
 library(tibble)
 library(stringr)
 # Load the processed data
-setwd("../semi-transfer-learning/DR_9_new")
-
-load("final_combined_results.RData")  # Adjust path if necessary
+load(dr_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -687,7 +622,7 @@ combined_plot <- ggdraw(combined_plot) +
 combined_plot
 
 ggsave(
-  filename = "../semi-transfer-learning/MSE_combined_plot.pdf",
+  filename = file.path(figure_dir, "MSE_combined_plot.pdf"),
   plot = combined_plot,
   width = 25,
   height = 10,
@@ -787,7 +722,7 @@ combined_plot <- ggdraw(combined_plot) +
 combined_plot
 
 ggsave(
-  filename = "../semi-transfer-learning/MSE_Mean_combined_plot_ms.pdf",
+  filename = file.path(figure_dir, "MSE_Mean_combined_plot_ms.pdf"),
   plot = combined_plot,
   width = 25,
   height = 25,
@@ -798,20 +733,13 @@ ggsave(
 
 ```{r}
 
-setwd(work_dir)
 library(dplyr)
 library(reshape2)
-library(labelled)
 library(ggplot2)
-files <- list.files(pattern = "\\.RData$", full.names = TRUE)
+files <- plm_setting_files
 for (file in files) {
   cat("Loaded:", file, "\n")
 }
-files <- list.files(pattern = "\\.RData$", full.names = TRUE)
-
-simi_val <- as.numeric(sub(".*simi_([0-9.]+)\\.RData$", "\\1", files))
-
-files <- files[simi_val %in% similarity_list]
 
 files
 
@@ -919,8 +847,8 @@ PLM_maximum <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
   )  + scale_y_log10()+
   scale_fill_manual(values = colors)
 ggsave(
-  filename = "../semi-transfer-learning/PLM_maximum_mse_plot.pdf",  # Specify the filename
-  plot = plot2,                        # Specify the plot object
+  filename = file.path(figure_dir, "PLM_maximum_mse_plot.pdf"),
+  plot = PLM_maximum,                  # Specify the plot object
   width = 10, height = 6,             # Adjust dimensions as needed
   dpi = 300                           # Set the resolution
 )
@@ -930,7 +858,7 @@ PLM_maximum
 
 
 ```{r}
-load("../semi-transfer-learning/CATE_dim8/final_combined_results.RData")  # Adjust path if necessary
+load(cate_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -1035,17 +963,15 @@ CATE_maximum <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Meth
     strip.text = element_text(size = 8),
     legend.position = "bottom"
   ) +
-  scale_fill_manual(values = color) + scale_y_log10()
+  scale_fill_manual(values = colors) + scale_y_log10()
 
 CATE_maximum
 ```
 
 
 ```{r}
-setwd("../semi-transfer-learning/DR_9_new")
-
 # Load the processed data
-load("final_combined_results.RData")  # Adjust path if necessary
+load(dr_combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -1225,7 +1151,7 @@ combined_plot <- ggdraw(combined_plot) +
 combined_plot
 
 ggsave(
-  filename = "../semi-transfer-learning/MSE_max_combined_plot.pdf",
+  filename = file.path(figure_dir, "MSE_max_combined_plot.pdf"),
   plot = combined_plot,
   width = 25,
   height = 10,
@@ -1324,7 +1250,7 @@ combined_plot <- ggdraw(combined_plot) +
 combined_plot
 
 ggsave(
-  filename = "../semi-transfer-learning/MSE_max_combined_plot_sm.pdf",
+  filename = file.path(figure_dir, "MSE_max_combined_plot_sm.pdf"),
   plot = combined_plot,
   width = 25,
   height = 25,
@@ -1332,4 +1258,483 @@ ggsave(
 )
 ```
 
+# Task-specific PLM figures
 
+The saved data also contain every task-level MSE used by the additional plots
+in the analysis script.
+
+```{r plm-task-specific-figures, fig.width=10, fig.height=6}
+display_method <- function(method) {
+  case_when(
+    str_detect(method, regex("^Baseline", ignore_case = TRUE)) ~ "Baseline",
+    str_detect(method, regex("^Pooled|^Data Pooling", ignore_case = TRUE)) ~ "Data Pooling",
+    str_detect(method, regex("^Sai_Transfer|Oracle Trans", ignore_case = TRUE)) ~ "Oracle Trans-Lasso",
+    str_detect(method, regex("^NonPara_Transfer|Late Fusion with Nuisance", ignore_case = TRUE)) ~ "Late Fusion with Nuisance",
+    str_detect(method, regex("^Para_Transfer|^Late Fusion$", ignore_case = TRUE)) ~ "Late Fusion",
+    str_detect(method, regex("^Net_Transfer|Representation Transfer", ignore_case = TRUE)) ~ "Representation Transfer",
+    str_detect(method, regex("^pERM", ignore_case = TRUE)) ~ "pERM",
+    str_detect(method, regex("^ARMUL", ignore_case = TRUE)) ~ "ARMUL",
+    TRUE ~ as.character(method)
+  )
+}
+
+plm_task_quantiles <- plm_results %>%
+  select(method, n, similarity, all_of(paste0("task", 1:5))) %>%
+  pivot_longer(
+    cols = all_of(paste0("task", 1:5)),
+    names_to = "Task",
+    values_to = "MSE"
+  ) %>%
+  filter(n %in% c(100, 200), similarity %in% similarity_list) %>%
+  group_by(method, n, similarity, Task) %>%
+  summarise(
+    Value = list(quantile(MSE, probs = c(0, 0.25, 0.5, 0.75), na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  unnest_longer(Value) %>%
+  mutate(
+    Method = factor(display_method(method), levels = method_order),
+    Task = factor(Task, levels = paste0("task", 1:5))
+  ) %>%
+  filter(!is.na(Method), is.finite(Value), Value > 0)
+
+PLM_MSE_plots <- setNames(vector("list", 5), paste0("task", 1:5))
+for (task_name in names(PLM_MSE_plots)) {
+  task_plot <- ggplot(
+    filter(plm_task_quantiles, Task == task_name),
+    aes(x = Method, y = Value, fill = Method)
+  ) +
+    geom_boxplot(outlier.shape = NA, coef = 2, width = box_width) +
+    facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+    labs(x = "Method", y = "MSE") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), legend.position = "bottom") +
+    scale_y_log10() +
+    scale_fill_manual(values = colors, breaks = method_order, drop = FALSE)
+
+  PLM_MSE_plots[[task_name]] <- task_plot
+  print(task_plot)
+  ggsave(
+    file.path(figure_dir, paste0("PLM_MSE_", task_name, ".pdf")),
+    task_plot,
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+}
+```
+
+# Task-level comparison figures
+
+```{r task-level-comparison, fig.width=18, fig.height=10}
+prepare_task_comparison_data <- function(data, model_name) {
+  data <- as.data.frame(data)
+  names(data) <- tolower(names(data))
+  data %>%
+    mutate(
+      method = as.character(method),
+      n = as.numeric(n),
+      similarity = as.numeric(similarity)
+    ) %>%
+    select(method, n, similarity, any_of("seed"), task1, task4, task5) %>%
+    pivot_longer(
+      cols = c(task1, task4, task5),
+      names_to = "Task",
+      values_to = "Value"
+    ) %>%
+    mutate(Model = model_name, Method = display_method(method))
+}
+
+all_task_data <- bind_rows(
+  prepare_task_comparison_data(plm_results, "PLM"),
+  prepare_task_comparison_data(cate_results, "CATE") %>%
+    filter(Method != "Representation Transfer"),
+  prepare_task_comparison_data(dr_results, "DR")
+) %>%
+  filter(
+    n %in% c(100, 200),
+    similarity %in% main_similarity_list,
+    is.finite(Value),
+    Value > 0,
+    Method %in% method_order
+  ) %>%
+  mutate(
+    Method = factor(Method, levels = method_order),
+    Task = factor(
+      Task,
+      levels = c("task1", "task4", "task5"),
+      labels = c("Task 1", "Task 4", "Task 5")
+    ),
+    similarity = factor(
+      similarity,
+      levels = main_similarity_list,
+      labels = format(main_similarity_list, trim = TRUE)
+    ),
+    Model = factor(Model, levels = c("PLM", "CATE", "DR"))
+  )
+
+all_task_data_no_outliers <- all_task_data %>%
+  group_by(Model, n, Task, similarity, Method) %>%
+  group_modify(~ {
+    valid_values <- .x$Value[is.finite(.x$Value) & .x$Value > 0]
+    if (length(valid_values) < 2L) return(.x)
+    whiskers <- boxplot.stats(valid_values, coef = 1.5)$stats
+    filter(.x, Value >= whiskers[1], Value <= whiskers[5])
+  }) %>%
+  ungroup()
+
+make_model_task_plot <- function(data, model_name) {
+  ggplot(
+    filter(data, Model == model_name),
+    aes(
+      x = similarity,
+      y = Value,
+      fill = Method,
+      group = interaction(similarity, Method)
+    )
+  ) +
+    geom_boxplot(
+      outlier.shape = NA,
+      coef = 1.5,
+      width = 0.75,
+      position = position_dodge2(width = 0.90, preserve = "single", padding = 0.03)
+    ) +
+    facet_wrap(
+      vars(n, Task),
+      ncol = 3,
+      scales = "free_y",
+      labeller = labeller(
+        n = function(value) paste0("n = ", value),
+        Task = label_value
+      )
+    ) +
+    labs(x = "Similarity", y = "MSE", fill = NULL) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(hjust = 0.5),
+      strip.text.x = element_text(size = 12, face = "bold"),
+      strip.text.y = element_text(size = 10),
+      legend.position = "bottom",
+      panel.spacing = grid::unit(0.8, "lines")
+    ) +
+    scale_y_log10(expand = expansion(mult = c(0.08, 0.12))) +
+    scale_fill_manual(values = colors, breaks = method_order, drop = FALSE) +
+    guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+}
+
+task_comparison_plots <- lapply(
+  c("PLM", "CATE", "DR"),
+  function(model_name) make_model_task_plot(all_task_data_no_outliers, model_name)
+)
+names(task_comparison_plots) <- c("PLM", "CATE", "DR")
+
+large_plot_theme <- theme(
+  axis.title = element_text(size = 22, face = "bold"),
+  axis.text = element_text(size = 18),
+  strip.text = element_text(size = 20, face = "bold"),
+  legend.position = "bottom",
+  legend.title = element_blank(),
+  legend.text = element_text(size = 18),
+  legend.key.size = grid::unit(1.2, "cm"),
+  panel.spacing = grid::unit(1, "lines"),
+  plot.margin = margin(15, 15, 15, 15)
+)
+
+for (model_name in names(task_comparison_plots)) {
+  without_legend <- task_comparison_plots[[model_name]] +
+    theme(legend.position = "none")
+  with_legend <- task_comparison_plots[[model_name]] +
+    large_plot_theme +
+    guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+
+  print(with_legend)
+  ggsave(
+    file.path(figure_dir, paste0(model_name, "_Task_Comparison.pdf")),
+    without_legend,
+    width = 18,
+    height = 8,
+    dpi = 300
+  )
+  ggsave(
+    file.path(figure_dir, paste0(model_name, "_Task_Comparison_with_legend.pdf")),
+    with_legend,
+    width = 18,
+    height = 10,
+    dpi = 300
+  )
+}
+```
+
+# Task-level negative-transfer figures
+
+```{r task-level-negative-transfer-all-methods, fig.width=18, fig.height=9}
+library(scales)
+
+negative_transfer_dir <- file.path(derived_dir, "negative_transfer")
+dir.create(negative_transfer_dir, recursive = TRUE, showWarnings = FALSE)
+sample_sizes_to_plot <- c(100, 200)
+similarities_to_plot <- similarity_list
+method_order_negative_transfer <- c(
+  "Data Pooling",
+  "Oracle Trans-Lasso",
+  "pERM",
+  "Representation Transfer",
+  "ARMUL",
+  "Late Fusion",
+  "Late Fusion with Nuisance"
+)
+
+prepare_negative_transfer_data <- function(data, model_name) {
+  data <- as.data.frame(data)
+  names(data) <- tolower(names(data))
+  task_columns <- names(data)[str_detect(names(data), "^task[0-9]+$")]
+  missing_columns <- setdiff(c("method", "n", "similarity", "seed"), names(data))
+  if (length(missing_columns) > 0L || length(task_columns) == 0L) {
+    stop(model_name, " data do not contain the required task-level fields.", call. = FALSE)
+  }
+
+  data %>%
+    mutate(
+      method = as.character(method),
+      seed = as.character(seed),
+      n = as.numeric(n),
+      similarity = as.numeric(similarity)
+    ) %>%
+    select(method, n, similarity, seed, all_of(task_columns)) %>%
+    pivot_longer(
+      cols = all_of(task_columns),
+      names_to = "Task",
+      values_to = "MSE"
+    ) %>%
+    mutate(Model = model_name, Method = display_method(method)) %>%
+    filter(Method %in% c("Baseline", method_order_negative_transfer), is.finite(MSE))
+}
+
+all_negative_transfer_long <- bind_rows(
+  prepare_negative_transfer_data(plm_results, "PLM"),
+  prepare_negative_transfer_data(cate_results, "SATE"),
+  prepare_negative_transfer_data(dr_results, "DR")
+) %>%
+  filter(
+    n %in% sample_sizes_to_plot,
+    round(similarity, 8) %in% round(similarities_to_plot, 8)
+  )
+
+negative_transfer_seed_level <- all_negative_transfer_long %>%
+  group_by(Model, n, similarity, seed, Task, Method) %>%
+  summarise(
+    MSE = mean(MSE, na.rm = TRUE),
+    Number_of_rows = n(),
+    .groups = "drop"
+  )
+
+duplicated_seed_results <- filter(negative_transfer_seed_level, Number_of_rows > 1L)
+if (nrow(duplicated_seed_results) > 0L) {
+  warning(
+    nrow(duplicated_seed_results),
+    " method/seed/task combinations contained duplicate rows; their MSE values were averaged."
+  )
+}
+negative_transfer_seed_level <- select(negative_transfer_seed_level, -Number_of_rows)
+
+baseline_seed_level <- negative_transfer_seed_level %>%
+  filter(Method == "Baseline") %>%
+  select(Model, n, similarity, seed, Task, Baseline_MSE = MSE)
+
+negative_transfer_paired <- negative_transfer_seed_level %>%
+  filter(Method != "Baseline") %>%
+  inner_join(
+    baseline_seed_level,
+    by = c("Model", "n", "similarity", "seed", "Task")
+  ) %>%
+  rename(Method_MSE = MSE) %>%
+  mutate(
+    Worse_than_baseline = Method_MSE > Baseline_MSE,
+    MSE_difference = Method_MSE - Baseline_MSE,
+    Relative_MSE_change = if_else(
+      Baseline_MSE > 0,
+      (Method_MSE - Baseline_MSE) / Baseline_MSE,
+      NA_real_
+    )
+  )
+
+negative_transfer_rate <- negative_transfer_paired %>%
+  group_by(Model, n, similarity, Task, Method) %>%
+  summarise(
+    Number_of_repetitions = n(),
+    Number_worse = sum(Worse_than_baseline, na.rm = TRUE),
+    Negative_transfer_rate = mean(Worse_than_baseline, na.rm = TRUE),
+    Mean_MSE_difference = mean(MSE_difference, na.rm = TRUE),
+    Median_MSE_difference = median(MSE_difference, na.rm = TRUE),
+    Mean_relative_MSE_change = mean(Relative_MSE_change, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Task = factor(Task, levels = paste0("task", 1:5), labels = paste("Task", 1:5)),
+    Method = factor(Method, levels = method_order_negative_transfer),
+    Model = factor(Model, levels = c("PLM", "SATE", "DR"))
+  ) %>%
+  arrange(Model, n, Task, Method, similarity)
+
+negative_transfer_colors <- colors[method_order_negative_transfer]
+negative_transfer_linetypes <- c(
+  "Data Pooling" = "solid",
+  "Oracle Trans-Lasso" = "dashed",
+  "pERM" = "dotted",
+  "Representation Transfer" = "dotdash",
+  "ARMUL" = "longdash",
+  "Late Fusion" = "twodash",
+  "Late Fusion with Nuisance" = "solid"
+)
+negative_transfer_shapes <- c(
+  "Data Pooling" = 15,
+  "Oracle Trans-Lasso" = 16,
+  "pERM" = 17,
+  "Representation Transfer" = 18,
+  "ARMUL" = 3,
+  "Late Fusion" = 7,
+  "Late Fusion with Nuisance" = 8
+)
+
+make_negative_transfer_plot <- function(result_data, model_name, large = FALSE) {
+  model_data <- filter(result_data, Model == model_name, !is.na(Method)) %>% droplevels()
+  if (nrow(model_data) == 0L) {
+    stop("No negative-transfer results were found for ", model_name, call. = FALSE)
+  }
+
+  plot <- ggplot(
+    model_data,
+    aes(
+      x = similarity,
+      y = Negative_transfer_rate,
+      color = Method,
+      linetype = Method,
+      shape = Method,
+      group = Method
+    )
+  ) +
+    geom_hline(yintercept = 0.5, color = "grey60", linetype = "dashed", linewidth = 0.5) +
+    geom_line(linewidth = if (large) 1.25 else 0.8, na.rm = TRUE) +
+    geom_point(size = if (large) 4 else 2.6, na.rm = TRUE) +
+    facet_grid(n ~ Task, labeller = labeller(n = function(value) paste0("n = ", value))) +
+    scale_x_continuous(breaks = similarities_to_plot) +
+    scale_y_continuous(
+      limits = c(0, 1),
+      breaks = seq(0, 1, by = 0.25),
+      labels = label_percent(accuracy = 1)
+    ) +
+    scale_color_manual(values = negative_transfer_colors, breaks = method_order_negative_transfer) +
+    scale_linetype_manual(values = negative_transfer_linetypes, breaks = method_order_negative_transfer) +
+    scale_shape_manual(values = negative_transfer_shapes, breaks = method_order_negative_transfer) +
+    labs(
+      x = "Similarity",
+      y = "Proportion worse than baseline",
+      color = NULL,
+      linetype = NULL,
+      shape = NULL
+    ) +
+    theme_minimal(base_size = if (large) 22 else 11) +
+    theme(
+      axis.text.x = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.box = "vertical",
+      strip.text = element_text(size = if (large) 22 else 10, face = if (large) "bold" else "plain"),
+      panel.spacing = grid::unit(if (large) 1.1 else 0.8, "lines")
+    ) +
+    guides(
+      color = guide_legend(nrow = 2, byrow = TRUE),
+      linetype = guide_legend(nrow = 2, byrow = TRUE),
+      shape = guide_legend(nrow = 2, byrow = TRUE)
+    )
+  plot
+}
+
+negative_transfer_plots <- lapply(
+  c("PLM", "SATE", "DR"),
+  function(model_name) make_negative_transfer_plot(negative_transfer_rate, model_name)
+)
+names(negative_transfer_plots) <- c("PLM", "SATE", "DR")
+
+write.csv(
+  negative_transfer_rate,
+  file.path(negative_transfer_dir, "task_level_negative_transfer_rates_all_methods.csv"),
+  row.names = FALSE
+)
+write.csv(
+  negative_transfer_paired,
+  file.path(negative_transfer_dir, "task_level_negative_transfer_seed_level_all_methods.csv"),
+  row.names = FALSE
+)
+
+for (model_name in names(negative_transfer_plots)) {
+  print(negative_transfer_plots[[model_name]])
+  write.csv(
+    filter(negative_transfer_rate, Model == model_name),
+    file.path(negative_transfer_dir, paste0(model_name, "_task_level_negative_transfer_rates.csv")),
+    row.names = FALSE
+  )
+  ggsave(
+    file.path(figure_dir, paste0(model_name, "_task_level_negative_transfer_all_methods.pdf")),
+    negative_transfer_plots[[model_name]],
+    width = 18,
+    height = 8,
+    dpi = 300
+  )
+}
+```
+
+```{r task145-negative-transfer, fig.width=18, fig.height=10}
+tasks_to_plot <- c(1, 4, 5)
+
+negative_transfer_rate_plot <- negative_transfer_rate %>%
+  mutate(
+    Model = if_else(as.character(Model) == "SATE", "CAT", as.character(Model)),
+    Task_number = as.numeric(str_extract(as.character(Task), "[0-9]+"))
+  ) %>%
+  filter(Task_number %in% tasks_to_plot) %>%
+  mutate(
+    Task = factor(Task_number, levels = tasks_to_plot, labels = paste("Task", tasks_to_plot)),
+    Method = factor(as.character(Method), levels = method_order_negative_transfer),
+    Model = factor(Model, levels = c("PLM", "CAT", "DR"))
+  ) %>%
+  arrange(Model, n, Task, Method, similarity)
+
+negative_transfer_paired_plot <- negative_transfer_paired %>%
+  mutate(
+    Model = if_else(Model == "SATE", "CAT", Model),
+    Task_number = as.numeric(str_extract(Task, "[0-9]+"))
+  ) %>%
+  filter(Task_number %in% tasks_to_plot)
+
+write.csv(
+  negative_transfer_rate_plot,
+  file.path(negative_transfer_dir, "task1_task4_task5_negative_transfer_rates_all_methods.csv"),
+  row.names = FALSE
+)
+write.csv(
+  negative_transfer_paired_plot,
+  file.path(negative_transfer_dir, "task1_task4_task5_negative_transfer_seed_level_all_methods.csv"),
+  row.names = FALSE
+)
+
+filtered_negative_transfer_plots <- lapply(
+  c("PLM", "CAT", "DR"),
+  function(model_name) make_negative_transfer_plot(negative_transfer_rate_plot, model_name, large = TRUE)
+)
+names(filtered_negative_transfer_plots) <- c("PLM", "CAT", "DR")
+
+for (model_name in names(filtered_negative_transfer_plots)) {
+  print(filtered_negative_transfer_plots[[model_name]])
+  ggsave(
+    file.path(
+      figure_dir,
+      paste0(model_name, "_task1_task4_task5_negative_transfer_all_methods.pdf")
+    ),
+    filtered_negative_transfer_plots[[model_name]],
+    width = 18,
+    height = 10,
+    dpi = 300
+  )
+}
+```

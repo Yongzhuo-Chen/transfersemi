@@ -1,27 +1,27 @@
 
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-lapply(files, source)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) != 1L) stop("Run this simulation with Rscript.", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+source(file.path(dirname(script_path), "reproducibility_helpers.R"))
+repo_root <- simulation_repo_root()
 # multi source partial linear model
-library(glmnet)
 run_simulation <- function(seed, n, similarity, dim){
   
   ntask <- 5
   n <- n # vary this from 200 to 500
   p <- dim
   similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
-  set.seed(seed)
+  cpu_device <- seed_reproducibly(seed)
   
-  dictionary_mse = paste0("results_finetune_new", dim,"/mse_n_",n,"_simi_",similarity)
-  if (!file.exists(dictionary_mse)) {
-    dir.create(dictionary_mse, recursive = TRUE)
-  }
-  filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-  dictionary_estimate = paste0("results_finetune_new", dim, "/est_n_",n,"_simi_",similarity)
-  if (!file.exists(dictionary_estimate)) {
-    dir.create(dictionary_estimate, recursive = TRUE)
-  }
-  filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
+  results_root <- file.path(output_root, paste0("results_finetune_new", dim))
+  dictionary_mse <- ensure_output_dir(file.path(
+    results_root, paste0("mse_n_", n, "_simi_", similarity)
+  ))
+  filename <- file.path(dictionary_mse, paste0("mse_data_seed_", seed, ".rds"))
+  dictionary_estimate <- ensure_output_dir(file.path(
+    results_root, paste0("est_n_", n, "_simi_", similarity)
+  ))
+  filename_estimates <- file.path(dictionary_estimate, paste0("estimate_data_seed_", seed, ".rds"))
   
   #if (file.exists(filename)) {
   #  cat("File for seed", seed, "already exists. Skipping this seed.\n")
@@ -55,6 +55,18 @@ run_simulation <- function(seed, n, similarity, dim){
   n <- sum(overall_split_index==2)
   n <- sum(overall_split_index==2)
   n1 <- sum(overall_split_index==1)
+  cv_results <- data.frame(
+    lambda = numeric(),
+    lambda_tilde = numeric(),
+    bandwidth = numeric(),
+    mse_mean = numeric(),
+    mse_task1 = numeric(),
+    mse_task2 = numeric(),
+    mse_task3 = numeric(),
+    mse_task4 = numeric(),
+    mse_task5 = numeric(),
+    coef_est_both_tuned = I(list())
+  )
   for(lam in lambdas){
     for (lambda_tilde in bandwidth_scale_seqs){
     for(bw in bandwidth_scale_seqs){
@@ -338,20 +350,6 @@ run_simulation <- function(seed, n, similarity, dim){
       coef_est_both <- fit_nonpara_transfer$coef_est_both_untuned
       end_time <- Sys.time()
       time_nonpar_transfer <- end_time - start_time
-      if (!exists("cv_results")) {
-        cv_results <- data.frame(
-          lambda = numeric(),
-          lambda_tilde = numeric(),
-          bandwidth = numeric(),
-          mse_mean = numeric(),
-          mse_task1 = numeric(),
-          mse_task2 = numeric(),
-          mse_task3 = numeric(),
-          mse_task4 = numeric(),
-          mse_task5 = numeric(),
-          coef_est_both_tuned = I(list())  # store list of coefficient vectors
-        )
-      }
       mse_each_task <- numeric(ntask)
       for (index in 1:ntask) {
         # Predicted Y_hat = D_test * beta_hat (linear parametric form)
@@ -395,7 +393,7 @@ run_simulation <- function(seed, n, similarity, dim){
   coef_est_both_tuned <- best_coef
   
   # Save the CV summary table
-  cv_file <- paste0(dictionary_estimate, "/cv_summary_seed_", seed, ".csv")
+  cv_file <- file.path(dictionary_estimate, paste0("cv_summary_seed_", seed, ".csv"))
   write.csv(cv_results[, c("lambda", "lambda_tilde", "bandwidth", "mse_mean")], cv_file, row.names = FALSE)
   cat("Saved cross-validation results to:", cv_file, "\n")
   
@@ -412,25 +410,16 @@ run_simulation <- function(seed, n, similarity, dim){
 
 
 
-library(parallel)
-library(pbmcapply)
-# Number of simulations
-num_simulations <- 100
-seeds <- 1:100
-
-num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-if (num_cores <= 1) {  # Fallback if SLURM_CPUS_PER_TASK is not set
-  num_cores <- detectCores()  # Detect all available cores on the node
-}
-
-cat("Number of cores used:", num_cores, "\n")
-
-
-args <- commandArgs(trailingOnly = TRUE)
-n <- as.numeric(args[1])         # First argument passed
-similarity <- as.numeric(args[2]) # Second argument passed
-seed <- as.numeric(args[3])
-dim <- as.numeric(args[4])
+usage <- "Rscript simulation/PLM_fintune.R <n> <similarity> <seed> <dim>"
+cli <- parse_numeric_cli(c("n", "similarity", "seed", "dim"), usage)
+validate_common_simulation_args(cli, minimum_dim = 4L)
+n <- cli$n
+similarity <- cli$similarity
+seed <- cli$seed
+dim <- cli$dim
+output_root <- simulation_output_root(repo_root)
+source_transfersemi(repo_root)
+library(glmnet)
 cat("The dim is", dim, "\n")
 cat(seed, n, similarity, dim)
 cat("The dim is", dim, "\n")# ---- Timing block ----
@@ -451,16 +440,13 @@ cat("Runtime (sec):", runtime_sec, "\n")
 cat("=====================================\n")
 
 # ---- Save timing info ----
-dictionary_mse <- paste0(
-  "../../results_finetune_new_time",
-  dim, "/mse_n_", n, "_simi_", similarity
-)
+dictionary_mse <- ensure_output_dir(file.path(
+  output_root,
+  paste0("results_finetune_new_time", dim),
+  paste0("mse_n_", n, "_simi_", similarity)
+))
 
-if (!file.exists(dictionary_mse)) {
-  dir.create(dictionary_mse, recursive = TRUE)
-}
-
-time_file <- paste0(dictionary_mse, "/time_seed_", seed, ".csv")
+time_file <- file.path(dictionary_mse, paste0("time_seed_", seed, ".csv"))
 
 write.csv(
   data.frame(

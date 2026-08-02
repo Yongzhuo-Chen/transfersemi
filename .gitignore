@@ -1,0 +1,23 @@
+.Rhistory
+.Rproj.user/
+*.log
+
+# Package build/check artifacts
+TransferSemi.Rcheck/
+TransferSemi_*.tar.gz
+
+# Rendered notebooks and generated figures/derived summaries
+outputs/
+visualization_github/*.html
+visualization_github/*_files/
+
+# Slurm creates these at submission time.
+scripts/logs/
+scripts/logs_CATE/
+scripts/logs_DR/
+/logs/
+
+# Restricted participant-level inputs. The public pseudo-data generator accepts
+# these from an external location; originals must never be committed here.
+cape.csv
+ninr.csv

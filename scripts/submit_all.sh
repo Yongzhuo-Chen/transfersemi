@@ -1,25 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 echo "===== MASTER SUBMISSION START ====="
 date
 hostname
 pwd
-
-
-
-mkdir -p ../logs
-
 echo "Submitting jobs..."
 
-# Submit each job script
-sbatch submit_CATE.sh
-sbatch submit_DR.sh
-sbatch submit_PLM_finetune.sh
-#sbatch submit_real_data_jobs.sh
-sbatch submit.sh
-#sbatch time_submit.sh
+# Submission drivers run directly and enqueue their worker jobs.
+bash "$SCRIPT_DIR/submit_CATE.sh"
+bash "$SCRIPT_DIR/submit_DR.sh"
+bash "$SCRIPT_DIR/submit_PLM_finetune.sh"
+bash "$SCRIPT_DIR/submit.sh"
+
+# Timing experiments are a separate development workflow; run time_submit.sh explicitly.
+
+# Restricted real data are opt-in: set SUBMIT_REAL_DATA=1 to enqueue them.
+if [[ ${SUBMIT_REAL_DATA:-0} == 1 ]]; then
+  bash "$SCRIPT_DIR/submit_real_data_jobs.sh"
+fi
 
 echo "===== ALL JOBS SUBMITTED ====="
 date

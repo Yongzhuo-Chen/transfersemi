@@ -1,23 +1,21 @@
-library(torch)
-
 # ----------------------------
 # Utilities
 # ----------------------------
 to_tensor <- function(x, device) {
-  torch_tensor(as.matrix(x), dtype = torch_float(), device = device)
+  torch::torch_tensor(as.matrix(x), dtype = torch::torch_float(), device = device)
 }
 
-row_sum <- function(x) torch_sum(x, dim = 2, keepdim = TRUE)  # sum over features
+row_sum <- function(x) torch::torch_sum(x, dim = 2, keepdim = TRUE)  # sum over features
 
 # ----------------------------
 # Representation network R(Z): q -> p
 # ----------------------------
-repnet <- nn_module(
+repnet <- torch::nn_module(
   "RepNet",
   initialize = function(q, hidden = c(5, 5), p = 2) {
-    self$fc1 <- nn_linear(q, hidden[1])
-    self$fc2 <- if (length(hidden) > 1) nn_linear(hidden[1], hidden[2]) else NULL
-    self$fc_out <- nn_linear(
+    self$fc1 <- torch::nn_linear(q, hidden[1])
+    self$fc2 <- if (length(hidden) > 1) torch::nn_linear(hidden[1], hidden[2]) else NULL
+    self$fc_out <- torch::nn_linear(
       if (is.null(self$fc2)) hidden[1] else hidden[2],
       p
     )
@@ -37,13 +35,13 @@ repnet <- nn_module(
 # ----------------------------
 # RTL model (sources): shared R(Z), domain-specific beta_k, gamma_k
 # ----------------------------
-rtl_model <- nn_module(
+rtl_model <- torch::nn_module(
   "RTLModel",
   initialize = function(q, d, p, K, hidden = c(5, 5)) {
     self$R <- repnet(q = q, hidden = hidden, p = p)
     # beta: K x d ; gamma: K x p
-    self$beta  <- nn_parameter(torch_zeros(K, d))
-    self$gamma <- nn_parameter(torch_zeros(K, p))
+    self$beta  <- torch::nn_parameter(torch::torch_zeros(K, d))
+    self$gamma <- torch::nn_parameter(torch::torch_zeros(K, p))
   },
   forward = function(x, z, k_idx) {
     #X is D from source data
@@ -52,8 +50,8 @@ rtl_model <- nn_module(
     # x: N x d ; z: N x q ; k_idx: N (1..K)
     Rz <- self$R(z)               # N x p
     # select domain-specific rows
-    beta_k  <- self$beta[k_idx$to(dtype = torch_long()), ]    # N x d
-    gamma_k <- self$gamma[k_idx$to(dtype = torch_long()), ]   # N x p
+    beta_k  <- self$beta[k_idx$to(dtype = torch::torch_long()), ]    # N x d
+    gamma_k <- self$gamma[k_idx$to(dtype = torch::torch_long()), ]   # N x p
     # linear parts
     x_part  <- row_sum(x * beta_k)       # N x 1
     z_part  <- row_sum(Rz * gamma_k)     # N x 1
@@ -73,7 +71,7 @@ fit_sources <- function(X_list, Z_list, y_list,
                         patience = 30, min_delta = 0.0,
                         restore_best = TRUE) {
   if (is.null(device)) { 
-    device <- if (cuda_is_available()) torch_device("cuda") else torch_device("cpu")
+    device <- torch::torch_device("cpu")
   }
 
   K <- length(X_list)
@@ -85,7 +83,13 @@ fit_sources <- function(X_list, Z_list, y_list,
   # ----------------------------
   # Shared train/test split indices (same rows across tasks)
   # ----------------------------
-  set.seed(seed)
+  if (!is.null(seed)) {
+    if (length(seed) != 1L || is.na(seed)) {
+      stop("seed must be NULL or one non-missing value")
+    }
+    set.seed(seed)
+    torch::torch_manual_seed(seed)
+  }
   n <- nrow(Z_list[[1]])
   stopifnot(all(vapply(Z_list, nrow, 1L) == n))
   stopifnot(all(vapply(X_list, nrow, 1L) == n))
@@ -119,7 +123,11 @@ fit_sources <- function(X_list, Z_list, y_list,
   x_tr <- to_tensor(X_tr_all, device)
   z_tr <- to_tensor(Z_tr_all, device)
   y_tr <- to_tensor(y_tr_all, device)
-  k_tr <- torch_tensor(k_tr_idx, dtype = torch_long(), device = device)
+  k_tr <- torch::torch_tensor(
+    k_tr_idx,
+    dtype = torch::torch_long(),
+    device = device
+  )
 
   # ----------------------------
   # Stack test
@@ -135,14 +143,22 @@ fit_sources <- function(X_list, Z_list, y_list,
   x_te <- to_tensor(X_te_all, device)
   z_te <- to_tensor(Z_te_all, device)
   y_te <- to_tensor(y_te_all, device)
-  k_te <- torch_tensor(k_te_idx, dtype = torch_long(), device = device)
+  k_te <- torch::torch_tensor(
+    k_te_idx,
+    dtype = torch::torch_long(),
+    device = device
+  )
 
   # ----------------------------
   # Model + optimizer
   # ----------------------------
   model <- rtl_model(q = q, d = d, p = p, K = K, hidden = hidden)
   model$to(device = device)
-  opt <- optim_adam(model$parameters, lr = lr, weight_decay = weight_decay)
+  opt <- torch::optim_adam(
+    model$parameters,
+    lr = lr,
+    weight_decay = weight_decay
+  )
 
   # ----------------------------
   # Early stopping bookkeeping
@@ -154,12 +170,12 @@ fit_sources <- function(X_list, Z_list, y_list,
 
   # safe deep copy of all parameters to CPU
   capture_state <- function(model) {
-    with_no_grad({
+    torch::with_no_grad({
       lapply(model$parameters, function(p) p$detach()$clone()$cpu())
     })
   }
   restore_state <- function(model, state_list) {
-    with_no_grad({
+    torch::with_no_grad({
       params <- model$parameters
       for (i in seq_along(params)) {
         params[[i]]$copy_(state_list[[i]]$to(device = device))
@@ -175,15 +191,15 @@ fit_sources <- function(X_list, Z_list, y_list,
     opt$zero_grad()
 
     y_hat <- model(x_tr, z_tr, k_tr)
-    loss_tr <- nnf_mse_loss(y_hat, y_tr)
+    loss_tr <- torch::nnf_mse_loss(y_hat, y_tr)
     loss_tr$backward()
     opt$step()
 
     # ----- eval on test -----
     model$eval()
-    with_no_grad({
+    torch::with_no_grad({
       y_hat_te <- model(x_te, z_te, k_te)
-      loss_te  <- nnf_mse_loss(y_hat_te, y_te)
+      loss_te  <- torch::nnf_mse_loss(y_hat_te, y_te)
     })
 
     tr_val <- as.numeric(loss_tr$item())
@@ -217,9 +233,9 @@ fit_sources <- function(X_list, Z_list, y_list,
   }
 
   # print trained beta/gamma (after restoring best)
-  with_no_grad({
-    beta_tr  <- as_array(model$beta$detach()$cpu())
-    gamma_tr <- as_array(model$gamma$detach()$cpu())
+  torch::with_no_grad({
+    beta_tr  <- torch::as_array(model$beta$detach()$cpu())
+    gamma_tr <- torch::as_array(model$gamma$detach()$cpu())
   })
   cat("\n==== Trained beta (K x d) [best-by-test] ====\n"); print(beta_tr)
   cat("\n==== Trained gamma (K x p) [best-by-test] ====\n"); print(gamma_tr)
@@ -241,8 +257,8 @@ fit_target_ols <- function(fitted_sources, X0, Z0, y0, ridge = 0.0, add_intercep
   device <- fitted_sources$device
   
   model$eval()
-  with_no_grad({
-    RZ0 <- as_array(model$R(to_tensor(Z0, device)))  # n0 x p
+  torch::with_no_grad({
+    RZ0 <- torch::as_array(model$R(to_tensor(Z0, device)))  # n0 x p
   })
   
   D0 <- cbind(if (add_intercept) 1 else NULL, X0, RZ0)   # n0 x (d(+1)+p)
@@ -309,4 +325,3 @@ process_for_rtl <- function(X, D, Y, effect, target_indx = 1, method = "CATE") {
     X0 = X0, Z0 = Z0, y0 = y0, beta0=effect[[target_indx]]
   )
 }
-

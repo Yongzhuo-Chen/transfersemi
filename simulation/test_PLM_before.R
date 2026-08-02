@@ -1,31 +1,32 @@
-
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-lapply(files, source)
+# Legacy exploratory PLM workflow retained for provenance; use test_PLM.R for the primary analysis.
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) != 1L) stop("Run this simulation with Rscript.", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+source(file.path(dirname(script_path), "reproducibility_helpers.R"))
+repo_root <- simulation_repo_root()
 # multi source partial linear model
-library(glmnet)
 run_simulation <- function(seed, n, similarity, dim){
   
 ntask <- 5
 n <- n # vary this from 200 to 500
 p <- dim
 similarity <- similarity #vary this from 1, 0.8, 0.6, 0.4
-set.seed(seed)
+cpu_device <- seed_reproducibly(seed)
 
-dictionary_mse = paste0("../../results_5_resotre_dim", dim,"/mse_n_",n,"_simi_",similarity)
-if (!file.exists(dictionary_mse)) {
-  dir.create(dictionary_mse, recursive = TRUE)
-}
-filename <- paste0(dictionary_mse,"/mse_data_seed_", seed, ".rds")
-dictionary_estimate = paste0("results_5_resotre_dim", dim, "/est_n_",n,"_simi_",similarity)
-if (!file.exists(dictionary_estimate)) {
-  dir.create(dictionary_estimate, recursive = TRUE)
-}
-filename_estimates <- paste0(dictionary_estimate, "/estimate_data_seed_", seed, ".rds")
-dictionary_time = paste0("time_5_restore_dim_", dim, "/_n_",n,"_simi_",similarity)
-if (!file.exists(dictionary_time)) {
-  dir.create(dictionary_time, recursive = TRUE)
-}
+dictionary_mse <- ensure_output_dir(file.path(
+  output_root, paste0("results_5_resotre_dim", dim),
+  paste0("mse_n_", n, "_simi_", similarity)
+))
+filename <- file.path(dictionary_mse, paste0("mse_data_seed_", seed, ".rds"))
+dictionary_estimate <- ensure_output_dir(file.path(
+  output_root, paste0("results_5_resotre_dim", dim),
+  paste0("est_n_", n, "_simi_", similarity)
+))
+filename_estimates <- file.path(dictionary_estimate, paste0("estimate_data_seed_", seed, ".rds"))
+dictionary_time <- ensure_output_dir(file.path(
+  output_root, paste0("time_5_restore_dim_", dim),
+  paste0("_n_", n, "_simi_", similarity)
+))
 #if (file.exists(filename)) {
 #  cat("File for seed", seed, "already exists. Skipping this seed.\n")
 #  return(NULL)  
@@ -90,7 +91,11 @@ for (index in 1:ntask){
   proc <- process_for_rtl(X, D, Y, effect, target_indx = index, method="PLM")
 
   str(proc, max.level = 1)
-  fit_src <- fit_sources(proc$X_list, proc$Z_list, proc$y_list, hidden = c(5,3), p = 1, epochs = 100)
+  fit_src <- fit_sources(
+    proc$X_list, proc$Z_list, proc$y_list,
+    hidden = c(5,3), p = 1, epochs = 100,
+    device = cpu_device
+  )
   fit_tgt <- fit_target_ols(fit_src, proc$X0, proc$Z0, proc$y0)
   Net_transfer[[index]] <- fit_tgt$coef[1]
 }
@@ -195,7 +200,8 @@ run_pERM_once_sameC <- function(X, D, Y, effect,
       r = r_fixed, nbasis = nbasis_fixed,
       C1 = C1, C2 = C2,
       info = info, link = "linear",
-      X_test_list = X_te_list
+      X_test_list = X_te_list,
+      device = cpu_device
     )
 
     fitY <- pERM_torch(
@@ -203,7 +209,8 @@ run_pERM_once_sameC <- function(X, D, Y, effect,
       r = r_fixed, nbasis = nbasis_fixed,
       C1 = C1, C2 = C2,
       info = info, link = "linear",
-      X_test_list = X_te_list
+      X_test_list = X_te_list,
+      device = cpu_device
     )
 
     for (t in seq_len(ntask)) {
@@ -243,7 +250,8 @@ run_pERM_once_sameC <- function(X, D, Y, effect,
       data = peRMdata,
       r = 1, nbasis = 1,
       C1 = C1, C2 = C2,
-      info = info, link = "linear"
+      info = info, link = "linear",
+      device = cpu_device
     )
 
     for (t in seq_len(ntask)) {
@@ -682,32 +690,22 @@ time <- list(
 )
 
 # save time as csv file
-time_filename <- paste0(dictionary_time, "/time_data_seed_", seed, ".csv")
+time_filename <- file.path(dictionary_time, paste0("time_data_seed_", seed, ".csv"))
 write.csv(time, file = time_filename, row.names = FALSE)
 }
 
 
-library(parallel)
-library(pbmcapply)
-# Number of simulations
-num_simulations <- 100
-seeds <- 1:100
-
-num_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-if (num_cores <= 1) {  # Fallback if SLURM_CPUS_PER_TASK is not set
-  num_cores <- detectCores()  # Detect all available cores on the node
-}
-
-cat("Number of cores used:", num_cores, "\n")
-
-
-args <- commandArgs(trailingOnly = TRUE)
-n <- as.numeric(args[1])         # First argument passed
-similarity <- as.numeric(args[2]) # Second argument passed
-seed <- as.numeric(args[3])
-dim <- as.numeric(args[4])
+usage <- "Rscript simulation/test_PLM_before.R <n> <similarity> <seed> <dim>"
+cli <- parse_numeric_cli(c("n", "similarity", "seed", "dim"), usage)
+validate_common_simulation_args(cli, minimum_dim = 4L)
+n <- cli$n
+similarity <- cli$similarity
+seed <- cli$seed
+dim <- cli$dim
+output_root <- simulation_output_root(repo_root)
+source_transfersemi(repo_root)
+library(glmnet)
 cat("The dim is", dim, "\n")
 cat(seed, n, similarity, dim)
 cat("The dim is", dim, "\n")
 run_simulation(seed, n, similarity, dim)
-

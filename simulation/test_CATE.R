@@ -1,27 +1,20 @@
-
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-lapply(files, source)
-library(glmnet)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) != 1L) stop("Run this simulation with Rscript.", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+source(file.path(dirname(script_path), "reproducibility_helpers.R"))
+repo_root <- simulation_repo_root()
 
 simulation <- function(n=n, similarity=similarity, seed=seed, dim=dim){
-result_dir = paste0("../../semi-transfer-learning/CATE_dim", dim, "/CATE_", n, "_", similarity)
-if (!dir.exists(result_dir)) {
-  dir.create(result_dir, recursive = TRUE)
-}
-result_dir_pro = paste0("../../CATE_pro_dim", dim, "/CATE_", n, "_", similarity)
-if (!dir.exists(result_dir_pro)) {
-  dir.create(result_dir_pro, recursive = TRUE)
-}
-result_dir_mu = paste0("../../CATE_mu_dim", dim, "/CATE_", n, "_", similarity)
-if (!dir.exists(result_dir_mu)) {
-  dir.create(result_dir_mu, recursive = TRUE)
-}
+cate_root <- file.path(output_root, paste0("CATE_dim", dim))
+scenario_dir <- paste0("CATE_", n, "_", similarity)
+result_dir <- ensure_output_dir(file.path(cate_root, scenario_dir))
+result_dir_pro <- ensure_output_dir(file.path(cate_root, "propensity_score", scenario_dir))
+result_dir_mu <- ensure_output_dir(file.path(cate_root, "outcome_model", scenario_dir))
 # multi source CATE
 ntask <- 5
 p <- dim
 max.dim <- 1
-set.seed(seed)
+cpu_device <- seed_reproducibly(seed)
 
 
 effect_common <- c(1,-1,0.5,0.5,-0.5,-0.5,0,0)
@@ -120,7 +113,11 @@ for (index in 1:ntask){
   proc <- process_for_rtl(X, X, Y, effect, target_indx = index)
 
   str(proc, max.level = 1)
-  fit_src <- fit_sources(proc$X_list, proc$Z_list, proc$y_list, hidden = c(5,5), p = 1, epochs = 100)
+  fit_src <- fit_sources(
+    proc$X_list, proc$Z_list, proc$y_list,
+    hidden = c(5,5), p = 1, epochs = 100,
+    device = cpu_device
+  )
   fit_tgt <- fit_target_ols(fit_src, proc$X0, proc$Z0, proc$y0)
   Net_transfer[[index]] <- fit_tgt$coef[1:p]
   Net_transfer[[index]] <- Net_transfer[[index]] / (Net_transfer[[index]][1])
@@ -184,7 +181,11 @@ error_df <- data.frame(
   Task = 1:ntask,
   MSE = error
 )
-write.csv(error_df, file = paste0(result_dir_pro, "/ARMUL_propensity_score_error", seed, ".csv"), row.names = FALSE)
+write.csv(
+  error_df,
+  file = file.path(result_dir_pro, paste0("ARMUL_propensity_score_error_", seed, ".csv")),
+  row.names = FALSE
+)
 coef_est <- list()
 for(split_indx in 1:number_split){
   coef_est[[split_indx]] <- list()
@@ -216,13 +217,6 @@ ARMUL_transfer = t(ARMUL_transfer)
 ##############################################################################################################################
 ##############################################################################################################################
 ##############################################################################################################################
-result_dir <- paste0(
-  "CATE_repro_test",
-  dim, "/CATE_", n, "_", similarity
-)
-
-if (!dir.exists(result_dir)) dir.create(result_dir, recursive = TRUE)
-
 # Compute MAE for each task
 MAE_mu1 <- numeric(ntask)
 MAE_mu0 <- numeric(ntask)
@@ -246,7 +240,7 @@ MAE_df <- data.frame(
 # Save one combined file
 write.csv(
   MAE_df,
-  file = file.path(result_dir, paste0("ARMUL_MSE_all_tasks_", seed, ".csv")),
+  file = file.path(result_dir_mu, paste0("ARMUL_MAE_all_tasks_", seed, ".csv")),
   row.names = FALSE
 )
 
@@ -286,7 +280,10 @@ for (split_indx in 1:number_split){
   for (t in 1:ntask){
     peRMdata[[t]] <- list(X = as.matrix(X1[[t]]), y = as.matrix(Y1[[t]]))
   }
-  pERM <- pERM_torch(peRMdata, r = 3, nbasis=100, info = TRUE, link = "logistic", X_test_list=X_test)
+  pERM <- pERM_torch(
+    peRMdata, r = 3, nbasis = 100, info = TRUE, link = "logistic",
+    X_test_list = X_test, device = cpu_device
+  )
   mu1_opt <- Map(function(p, pred) {
     p[index_select != split_indx] <- pred
     p
@@ -296,7 +293,10 @@ for (split_indx in 1:number_split){
   for (t in 1:ntask){
     peRMdata[[t]] <- list(X = as.matrix(X0[[t]]), y = as.matrix(Y0[[t]]))
   }
-  pERM <- pERM_torch(peRMdata, r = 3, nbasis=10, info = TRUE, link = "logistic", X_test_list=X_test)
+  pERM <- pERM_torch(
+    peRMdata, r = 3, nbasis = 10, info = TRUE, link = "logistic",
+    X_test_list = X_test, device = cpu_device
+  )
   mu0_opt <- Map(function(p, pred) {
     p[index_select != split_indx] <- pred
     p
@@ -304,7 +304,10 @@ for (split_indx in 1:number_split){
   for (t in 1:ntask){
     peRMdata[[t]] <- list(X = as.matrix(X_train[[t]]), y = as.matrix(D_train[[t]]))
   }
-  pERM <- pERM_torch(peRMdata, r = 3, nbasis=10, info = TRUE, link = "logistic", X_test_list=X_test) 
+  pERM <- pERM_torch(
+    peRMdata, r = 3, nbasis = 10, info = TRUE, link = "logistic",
+    X_test_list = X_test, device = cpu_device
+  )
   # calculate error between predicted propensity score and true propensity score
   
   propensity_score <- Map(function(p, pred) {
@@ -323,7 +326,11 @@ error_df <- data.frame(
 # save propensity score as csv
 propensity_score_df <- do.call(cbind, propensity_score)
 colnames(propensity_score_df) <- paste0("Task", 1:ntask)
-write.csv(error_df, file = paste0(result_dir_pro, "/pERM_propensity_score_error", seed, ".csv"), row.names = FALSE)
+write.csv(
+  error_df,
+  file = file.path(result_dir_pro, paste0("pERM_propensity_score_error_", seed, ".csv")),
+  row.names = FALSE
+)
 coef_est <- list()
 for(split_indx in 1:number_split){
   coef_est[[split_indx]] <- list()
@@ -337,7 +344,10 @@ for(split_indx in 1:number_split){
     X_test[[index]] <- X[[index]][index_select==split_indx,]
     peRMdata[[index]] <- list(X = as.matrix(X_train[[index]]), y = as.matrix(pseudo.Y[[index]]))
   }
-  pERM <- pERM_torch(peRMdata, r = 2, nbasis=1, info = TRUE, link = "logistic", X_test_list=X_test)
+  pERM <- pERM_torch(
+    peRMdata, r = 2, nbasis = 1, info = TRUE, link = "logistic",
+    X_test_list = X_test, device = cpu_device
+  )
   for (index in 1:ntask){
     coef_est[[split_indx]][[index]] <- pERM$step2[,index] / pERM$step2[1,index] 
   }
@@ -358,11 +368,6 @@ pERM_transfer=t(pERM_transfer)
 ##############################################################################################################################
 print("finished fitting pERM")
 
-
-# Ensure directory exists
-if (!dir.exists(result_dir)) {
-  dir.create(result_dir, recursive = TRUE)
-}
 
 # Compute MSE for each task
 MSE_mu1 <- numeric(ntask)
@@ -389,7 +394,7 @@ MSE_df <- data.frame(
 # Save one CSV with all MSE results
 write.csv(
   MSE_df,
-  file = file.path(result_dir, paste0("pERM_MSE_all_tasks_", seed, ".csv")),
+  file = file.path(result_dir_mu, paste0("pERM_MSE_all_tasks_", seed, ".csv")),
   row.names = FALSE
 )
 
@@ -772,11 +777,19 @@ save(result,
 
 
 }
-args <- commandArgs(trailingOnly = TRUE)
-n <- as.numeric(args[1])         # First argument passed
-similarity <- as.numeric(args[2]) # Second argument passed
-seed <- as.numeric(args[3])
-dim <- as.numeric(args[4])
+usage <- "Rscript simulation/test_CATE.R <n> <similarity> <seed> <dim>"
+cli <- parse_numeric_cli(c("n", "similarity", "seed", "dim"), usage)
+validate_common_simulation_args(cli)
+if (cli$dim != 8) {
+  stop("dim must equal 8 for the CATE data-generating mechanism.", call. = FALSE)
+}
+n <- cli$n
+similarity <- cli$similarity
+seed <- cli$seed
+dim <- cli$dim
+output_root <- simulation_output_root(repo_root)
+source_transfersemi(repo_root)
+library(glmnet)
 cat(seed, n, similarity)
 
 simulation(n, similarity, seed, dim)

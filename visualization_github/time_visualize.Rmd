@@ -6,10 +6,25 @@ output: html_document
 ```{r}
 library(data.table)
 
-BASE <- "../semi-transfer-learning"
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+repo_root <- find_repo_root()
+BASE <- file.path(repo_root, "semi-transfer-learning")
+figure_dir <- file.path(repo_root, "outputs", "figures", "time_visualize")
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 dims <- c(8, 20)
 ns <- c(100, 200)
 simis <- seq(0, 1, by = 0.2)
+lambda_length <- 100L
 
 methods <- c("Late Fusion", "Late Fusion with Nuisance")
 
@@ -26,10 +41,13 @@ all_rows <- list()
 # --------------------------
 rows <- list()
 for (dim in dims) {
-  root <- file.path(BASE, sprintf("time_6_dim_%d", dim))
+  root <- file.path(BASE, sprintf("time_6_dim%d", dim))
   for (n in ns) {
     for (simi in simis) {
-      folder <- file.path(root, sprintf("_n_%d_simi_%s", n, format(simi, nsmall = 1)))
+      folder <- file.path(
+        root,
+        sprintf("_n_%d_simi_%slambda_len%d", n, format(simi, nsmall = 1), lambda_length)
+      )
       if (!dir.exists(folder)) next
 
       files <- list.files(folder, pattern = "^time_data_seed_.*\\.csv$", full.names = TRUE)
@@ -56,6 +74,12 @@ for (dim in dims) {
   }
 }
 all_data <- rbindlist(all_rows, fill = TRUE)
+if (nrow(all_data) == 0L) {
+  stop(
+    "No lambda_len100 timing inputs were found under semi-transfer-learning/time_6_dim8 or time_6_dim20.",
+    call. = FALSE
+  )
+}
 
 # ---- convert seconds → minutes ----
 all_data[, Value := Value / 60]
@@ -88,7 +112,7 @@ p <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
   scale_fill_manual(values = colors)
 
 ggsave(
-  filename = "time_visualize_minutes.pdf",
+  filename = file.path(figure_dir, "time_visualize_minutes.pdf"),
   plot = p,
   width = 10, height = 8,
   dpi = 300
@@ -160,13 +184,13 @@ p_simi_bar_like <- ggplot(summary_data, aes(x = similarity, y = mean, color = Me
 
 p_simi_bar_like
 ggsave(
-  "time_visualize_by_similarity_bar_ci.pdf",
-  p_simi_bar,
+  file.path(figure_dir, "time_visualize_by_similarity_bar_ci.pdf"),
+  p_simi_bar_like,
   width = 12, height = 8,
   dpi = 300
 )
 
-p_simi_bar
+p_simi_bar_like
 ```
 
 
@@ -243,7 +267,7 @@ p_simi_bar <- ggplot(all_data, aes(x = similarity, y = Value, fill = Method)) +
   ) + scale_y_log10(
   limits = c(0.01, NA)
 ) 
-ggsave("time_visualize_for_PLM_bar_ci.pdf", p_simi_bar, width = 12, height = 8, dpi = 300)
+ggsave(file.path(figure_dir, "time_visualize_for_PLM_bar_ci.pdf"), p_simi_bar, width = 12, height = 8, dpi = 300)
 p_simi_bar
 ```
 
@@ -283,7 +307,7 @@ p_simi_bar <- ggplot(summary_data, aes(x = similarity, y = mean, fill = Method))
   )
 
 ggsave(
-  "time_visualize_by_similarity_bar_ci_log_seconds.pdf",
+  file.path(figure_dir, "time_visualize_by_similarity_bar_ci_log_seconds.pdf"),
   p_simi_bar,
   width = 12, height = 8,
   dpi = 300
@@ -291,4 +315,3 @@ ggsave(
 
 p_simi_bar
 ```
-

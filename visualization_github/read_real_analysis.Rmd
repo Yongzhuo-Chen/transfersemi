@@ -5,6 +5,55 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+repo_root <- find_repo_root()
+derived_dir <- file.path(repo_root, "outputs", "derived", "read_real_analysis")
+figure_dir <- file.path(repo_root, "outputs", "figures", "read_real_analysis")
+resolve_repo_path <- function(value, default) {
+  if (!nzchar(value)) return(default)
+  expanded <- path.expand(value)
+  is_absolute <- grepl("^(/|[A-Za-z]:[/\\\\]|\\\\\\\\)", expanded)
+  if (is_absolute) expanded else file.path(repo_root, expanded)
+}
+data_folder_path <- resolve_repo_path(
+  Sys.getenv("TRANSFERSEMI_REAL_OUTPUT_DIR", unset = ""),
+  file.path(repo_root, "real_data", "result_real_data")
+)
+corr_dir <- resolve_repo_path(
+  Sys.getenv("TRANSFERSEMI_CORR_OUTPUT_DIR", unset = ""),
+  file.path(repo_root, "real_data", "corr")
+)
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+raw_data_file <- file.path(derived_dir, "raw_data.RData")
+mean_summary_file <- file.path(derived_dir, "Mean_Mean_model_summaries.RData")
+maximum_summary_file <- file.path(derived_dir, "Mean_maximum_MSE.RData")
+
+safe_pairwise_cor <- function(x, y) {
+  x <- suppressWarnings(as.numeric(x))
+  y <- suppressWarnings(as.numeric(y))
+  min_len <- min(length(x), length(y))
+  if (min_len <= 1L) return(NA_real_)
+  x <- x[seq_len(min_len)]
+  y <- y[seq_len(min_len)]
+  complete <- is.finite(x) & is.finite(y)
+  if (sum(complete) <= 1L) return(NA_real_)
+  if (isTRUE(all.equal(stats::sd(x[complete]), 0)) ||
+      isTRUE(all.equal(stats::sd(y[complete]), 0))) {
+    return(NA_real_)
+  }
+  suppressWarnings(stats::cor(x[complete], y[complete], method = "pearson"))
+}
 ```
 
 ```{r}
@@ -18,12 +67,17 @@ format_list_to_df <- function(eval_list) {
     stringsAsFactors = FALSE
   )
   
-  for (model_name in names(eval_list)[1:9]) {
-    for (i in seq_along(eval_list[[model_name]])) {
-      if(model_name == "eval_pool"){ mse_list <- eval_list[[model_name]]$mse[[1]]
-       value_list <- eval_list[[model_name]]$mse[[1]]}else{
-      mse_list <- eval_list[[model_name]][[1]]$mse
-       value_list <- eval_list[[model_name]][[1]]$value_function
+  model_names <- head(names(eval_list), 9)
+  for (model_name in model_names) {
+    model_result <- eval_list[[model_name]]
+    n_subgroups <- if (model_name == "eval_pool") 1L else length(model_result)
+    for (i in seq_len(n_subgroups)) {
+      if (model_name == "eval_pool") {
+        mse_list <- model_result$mse
+        value_list <- model_result$value_function
+      } else {
+        mse_list <- model_result[[i]]$mse
+        value_list <- model_result[[i]]$value_function
       }
      
       for (j in seq_along(mse_list)) {
@@ -46,18 +100,36 @@ format_list_to_df <- function(eval_list) {
 
 
 ```{r}
-data_folder_path <- "../semi-transfer-learning/dataset/result17"
-files <- list.files(data_folder_path)[1:100]
+files <- list.files(
+  data_folder_path,
+  pattern = "^[0-9]+\\.RData$",
+  full.names = TRUE
+)
+if (length(files) == 0L) {
+  stop("No real-data result files found in real_data/result_real_data.", call. = FALSE)
+}
+seeds <- as.integer(tools::file_path_sans_ext(basename(files)))
+files <- files[order(seeds)]
+seeds <- sort(seeds)
+missing_seeds <- setdiff(seq_len(max(seeds)), seeds)
+message(
+  "Using all ", length(files), " available tracked real-data result files. ",
+  if (length(missing_seeds)) {
+    paste0("Missing seeds through ", max(seeds), ": ", paste(missing_seeds, collapse = ", "), ".")
+  } else {
+    "No seeds are missing through the maximum available seed."
+  }
+)
 final_df <- data.frame()
 for (i in seq_along(files)) {
-  load(paste0(data_folder_path, "/", files[i]))
+  load(files[[i]])
   formatted_df <- format_list_to_df(res) 
-  seed <- sub("\\.RData$", "", files[i])
+  seed <- tools::file_path_sans_ext(basename(files[[i]]))
   formatted_df$seed <- as.numeric(seed)
   final_df <- rbind(final_df, formatted_df)
 }
 
-save(final_df, file = "raw_data.RData")
+save(final_df, file = raw_data_file)
 
 mean_sd_by_model <- aggregate(MSE ~ Model, data = final_df, FUN = function(x) c(mean = mean(x), sd = sd(x)))
 mean_vf_by_model <- aggregate(Value_Function ~ Model, data = final_df,  FUN = function(x) c(mean = max(x), sd = sd(x)))
@@ -65,7 +137,7 @@ mean_sd_by_model <- do.call(data.frame, mean_sd_by_model)
 mean_vf_by_model <- do.call(data.frame, mean_vf_by_model)
 mean_sd_by_model
 mean_vf_by_model
-save(mean_sd_by_model, mean_vf_by_model, file = "Mean_Mean_model_summaries.RData")
+save(mean_sd_by_model, mean_vf_by_model, file = mean_summary_file)
 
 ```
 
@@ -165,7 +237,7 @@ p = ggplot(mean_sd_by_model, aes(x = Model, y = MSE.mean, colour = Model)) +
    theme_minimal(base_size = 18) +
   theme(axis.text.x = element_blank(), legend.position = "bottom")
 
-ggsave("../semi-transfer-learning/dataset/combined_err.pdf", plot = p, width = 10, height = 5, dpi = 300)
+ggsave(file.path(figure_dir, "combined_err.pdf"), plot = p, width = 10, height = 5, dpi = 300)
 
 p
 
@@ -216,7 +288,7 @@ max_MSE = aggregate(MSE ~ Model + seed, data = final_df, FUN = function(x) c(max
 do.call(data.frame, max_MSE)
 miximum_MSE = aggregate(MSE ~ Model, data = max_MSE, FUN = function(x) c(mean = median(x), sd = sd(x)))
 miximum_MSE = do.call(data.frame, miximum_MSE)
-save(miximum_MSE, file = "Mean_maximum_MSE.RData")
+save(miximum_MSE, file = maximum_summary_file)
 ```
 
 ```{r}
@@ -241,7 +313,7 @@ p<-ggplot(df, aes(x = Model, y = MSE.mean, color=Model)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ggsave(
-  filename = "maximum_real_data.pdf",  # Specify the filename
+  filename = file.path(figure_dir, "maximum_real_data.pdf"),
   plot = p,                        # Specify the plot object
   width = 10, height = 6,             # Adjust dimensions as needed
   dpi = 300                           # Set the resolution
@@ -290,18 +362,40 @@ print(as.data.frame(mean_value_matrix))
 
 
 ```{r}
-load("Mean_Mean_model_summaries.RData")
+load(mean_summary_file)
 mean_sd_by_model
 mean_vf_by_model
-load("Mean_maximum_MSE.RData")
+load(maximum_summary_file)
 miximum_MSE
-load("raw_data.RData")
+load(raw_data_file)
 final_df
 ```
 
 
 ```{r}
-X = readRDS("./data/corr/X.Rdata")
+required_corr_files <- c(
+  "X.Rdata",
+  "eval_para_transfer_tuned_w_race.Rdata",
+  "eval_no_transfer_w_race.Rdata",
+  "eval_semipara_transfer_tuned_w_race.Rdata",
+  "eval_Sai_transfer_w_race.Rdata",
+  "eval_ARMUL_w_race.Rdata",
+  "eval_pERM_w_race.Rdata",
+  "eval_pool_w_race.Rdata",
+  "pool_X.Rdata"
+)
+missing_corr_files <- required_corr_files[
+  !file.exists(file.path(corr_dir, required_corr_files))
+]
+if (length(missing_corr_files)) {
+  stop(
+    "Missing correlation inputs in real_data/corr: ",
+    paste(missing_corr_files, collapse = ", "),
+    ". Run `Rscript real_data/correlations.R` first.",
+    call. = FALSE
+  )
+}
+X <- readRDS(file.path(corr_dir, "X.Rdata"))
 ```
 
 ```{r}
@@ -312,13 +406,17 @@ models <- c("para_transfer_tuned", "no_transfer", "semipara_transfer_tuned", "Sa
 for (model in models){
 for (index in 1:4) {
   file_name <- paste0("eval_", model, "_w_race.Rdata")
-  a <- readRDS(paste0("./data/corr/", file_name))
+  a <- readRDS(file.path(corr_dir, file_name))
   if(model == "Sai_transfer"){target = a[[index]]$f_hat}else{
   target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2}
   continuous_vars <- c("ben1tot", "se1tot", "sus1tot", "fear1tot", "fatal1tot", "know1tot")
   selected_columns <- X[[index]]#[, continuous_vars, drop = FALSE]
   
-  correlations <- sapply(1:ncol(selected_columns), function(i) cor(selected_columns[, i], as.numeric(target), method = "pearson", use="complete.obs"))
+  correlations <- vapply(
+    seq_len(ncol(selected_columns)),
+    function(i) safe_pairwise_cor(selected_columns[, i], target),
+    numeric(1)
+  )
   names(correlations) <- colnames(selected_columns)
   
   n_task <- index
@@ -338,15 +436,19 @@ for (index in 1:4) {
 }
 model = "pool"
 file_name <- paste0("eval_", model, "_w_race.Rdata")
-b <- readRDS(paste0("../semi-transfer-learning/dataset/corr/", file_name))
-target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2
-X_pool <-  readRDS("../semi-transfer-learning/dataset/corr/pool_X.Rdata")
-elected_columns <- X_pool#[, continuous_vars, drop = FALSE]
+b <- readRDS(file.path(corr_dir, file_name))
+pool_target <- (b$f_hat[[1]][[1]] + b$f_hat[[2]][[1]]) / 2
+X_pool <- readRDS(file.path(corr_dir, "pool_X.Rdata"))
+selected_columns <- X_pool
   
-correlations <- sapply(1:ncol(selected_columns), function(i) cor(selected_columns[, i], as.numeric(target), method = "pearson", use="complete.obs"))
+correlations <- vapply(
+  seq_len(ncol(selected_columns)),
+  function(i) safe_pairwise_cor(selected_columns[, i], pool_target),
+  numeric(1)
+)
 names(correlations) <- colnames(selected_columns)
 
-n_task <- index
+n_task <- 0L
 final_df <- data.frame(
   Variable = names(correlations),
   Correlation = correlations,
@@ -354,7 +456,7 @@ final_df <- data.frame(
   model = model,
   stringsAsFactors = FALSE # Ensures string variables remain as character type
 )
-all_dfs[[model]][[index]] <- final_df
+all_dfs[[model]][[1]] <- final_df
 all_dfs_flattened <- do.call(c, all_dfs)
 combined_df <- do.call(rbind, all_dfs_flattened)
 print(combined_df)
@@ -364,7 +466,7 @@ print(combined_df)
 ```{r}
 library(ggplot2)
 library(reshape2)
-df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x)))
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x, na.rm = TRUE)))
 df = do.call(data.frame, df)
 
 ggplot(df, aes(x = Variable, y = Correlation, group = interaction(model),
@@ -431,19 +533,22 @@ ggplot(heatmap_data_con, aes(Var2, Var1, fill = value)) +
 ```{r}
 
 
+categorical_dfs <- list()
 for (model in models){
 for (index in 1:4) {
   file_name <- paste0("eval_", model, "_w_race.Rdata")
-  a <- readRDS(paste0("../semi-transfer-learning/dataset/corr/", file_name))
+  a <- readRDS(file.path(corr_dir, file_name))
   if(model == "Sai_transfer"){target = a[[index]]$f_hat}else{
   target <- (a[[index]]$f_hat[[1]][[1]] + a[[index]]$f_hat[[2]][[1]])/2}
   continuous_vars <- c("bar1tot", "ben1tot", "se1tot", "sus1tot", "fear1tot", "fatal1tot", "know1tot")
   selected_columns <- X[[index]][, setdiff(colnames(X[[index]]), continuous_vars), drop = FALSE]
   
-  correlations <- sapply(1:ncol(selected_columns), function(i) {
-  cor(selected_columns[, i], target)
-})
-  names(correlations) <- setdiff(colnames(X[[index]]), continuous_vars)
+  correlations <- vapply(
+    seq_len(ncol(selected_columns)),
+    function(i) safe_pairwise_cor(selected_columns[, i], target),
+    numeric(1)
+  )
+  names(correlations) <- colnames(selected_columns)
   
   n_task <- index
   
@@ -458,17 +563,30 @@ for (index in 1:4) {
   )
   
   # Append the data frame to the list
-  all_dfs[[model]][[index]] <- final_df
+  categorical_dfs[[model]][[index]] <- final_df
 }
 }
-all_dfs_flattened <- do.call(c, all_dfs)
+pool_categorical_columns <- X_pool[, setdiff(colnames(X_pool), continuous_vars), drop = FALSE]
+pool_correlations <- vapply(
+  seq_len(ncol(pool_categorical_columns)),
+  function(i) safe_pairwise_cor(pool_categorical_columns[, i], pool_target),
+  numeric(1)
+)
+categorical_dfs[["pool"]][[1]] <- data.frame(
+  Variable = colnames(pool_categorical_columns),
+  Correlation = pool_correlations,
+  n_task = 0L,
+  model = "pool",
+  stringsAsFactors = FALSE
+)
+all_dfs_flattened <- do.call(c, categorical_dfs)
 combined_df <- do.call(rbind, all_dfs_flattened)
 print(combined_df)
 ```
 
 
 ```{r}
-df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x)))
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) c(mean = mean(x, na.rm = TRUE)))
 df = do.call(data.frame, df)
 
 ggplot(df, aes(x = Variable, y = Correlation, group = interaction(model),
@@ -503,7 +621,7 @@ ggplot(df, aes(x = Variable, y = Correlation, group = model, color = model)) +
 ```
 
 ```{r}
-df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = mean)
+df = aggregate(Correlation ~ model + Variable, data = combined_df, FUN = function(x) mean(x, na.rm = TRUE))
 ggplot(df, aes(x = Variable, y = Correlation, fill = model)) +
   geom_bar(stat = "identity", position = "stack") + 
   labs(
@@ -519,10 +637,10 @@ ggplot(df, aes(x = Variable, y = Correlation, fill = model)) +
 ```
 
 ```{r}
-data_matrix <- as.matrix(data_melted[,-1])
-data_matrix <- data_matrix[, !(colnames(data_matrix) %in% c("married", "stage"))]
 data_melted <- dcast(df, model ~ Variable, value.var = "Correlation")
 rownames(data_melted) <- data_melted$model
+data_matrix <- as.matrix(data_melted[,-1])
+data_matrix <- data_matrix[, !(colnames(data_matrix) %in% c("married", "stage")), drop = FALSE]
 
 
 heatmap_data <- reshape2::melt(data_matrix)
@@ -592,7 +710,7 @@ p<-ggplot(heatmap_data2, aes(Var2, Var1, fill = value)) +
   )+
   labs(x = "Variable", y = NULL, fill = "Correlation")
 p
-ggsave( "./corr.pdf", p, width = 10, height = 6,)
+ggsave(file.path(figure_dir, "corr.pdf"), p, width = 10, height = 6)
 ```
 
 ```{r}
@@ -636,7 +754,6 @@ p=ggplot(df, aes(x = Method, y = MSE.mean, color = Method)) +
        color = "Method") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("../transfer-learning/dataset/combined_err.pdf", p, width = 10, height = 6,)
+ggsave(file.path(figure_dir, "combined_err_by_summary.pdf"), p, width = 10, height = 6)
 p
 ```
-

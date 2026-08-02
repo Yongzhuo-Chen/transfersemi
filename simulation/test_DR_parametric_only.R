@@ -1,8 +1,9 @@
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
-lapply(files, source)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) != 1L) stop("Run this simulation with Rscript.", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+source(file.path(dirname(script_path), "reproducibility_helpers.R"))
+repo_root <- simulation_repo_root()
 # multi source partial linear model
-library(glmnet)
 simulation <- function(seed, n, similarity, dim){
 
   # multi source Dimension reduction
@@ -11,7 +12,7 @@ simulation <- function(seed, n, similarity, dim){
   p <- dim
   #similarity <- 1 #vary this from 1, 0.8, 0.6, 0.4
   max.dim<-1
-  set.seed(seed)
+  cpu_device <- seed_reproducibly(seed)
 
   effect_common <- seq(-0.5, 0.5, length.out = p)
 
@@ -109,7 +110,8 @@ simulation <- function(seed, n, similarity, dim){
     max_iter = 2000,
     C1 = 1, C2 = 1,
     info = FALSE,
-    link = "linear"
+    link = "linear",
+    device = cpu_device
   )
 
   beta_pERM_mat <- fit_perm_YX$step2   # (p*nbasis) x ntask
@@ -270,32 +272,30 @@ simulation <- function(seed, n, similarity, dim){
   colnames(res) <- c("Task1", "Task2", "Task3", "Task4", "Task5")
   res <- cbind(res, seed=seed)
   res
-dictionary_mse = paste0("../../semi-transfer-learning/DR_9_new/mse_n_",n,"_simi_",similarity)
-if (!file.exists(dictionary_mse)) {
-  dir.create(dictionary_mse, recursive = TRUE)
-}
+dictionary_mse <- ensure_output_dir(file.path(
+  output_root, "DR_9_new", paste0("mse_n_", n, "_simi_", similarity)
+))
 
 save(
   res,
-  file = paste0(
-    dictionary_mse,"/",
-    seed,
-    ".RData"
-  )
+  file = file.path(dictionary_mse, paste0(seed, ".RData"))
 )
 print(res)
 }
 
-args <- commandArgs(trailingOnly = TRUE)
-n <- as.numeric(args[1])         # First argument passed
-similarity <- as.numeric(args[2]) # Second argument passed
-seed <- as.numeric(args[3])
-dim <- as.numeric(args[4])
+usage <- "Rscript simulation/test_DR_parametric_only.R <n> <similarity> <seed> <dim>"
+cli <- parse_numeric_cli(c("n", "similarity", "seed", "dim"), usage)
+validate_common_simulation_args(cli, minimum_dim = 2L)
+n <- cli$n
+similarity <- cli$similarity
+seed <- cli$seed
+dim <- cli$dim
+output_root <- simulation_output_root(repo_root)
+source_transfersemi(repo_root)
+library(glmnet)
 cat(seed, n, similarity, dim)
 
 simulation(seed, n, similarity, dim)
-
-
 
 
 

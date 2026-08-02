@@ -5,6 +5,24 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+find_repo_root <- function(start = getwd()) {
+  current <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+        dir.exists(file.path(current, "visualization_github"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) break
+    current <- parent
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+repo_root <- find_repo_root()
+derived_dir <- file.path(repo_root, "outputs", "derived", "sim_visualization_DR")
+figure_dir <- file.path(repo_root, "outputs", "figures", "sim_visualization_DR")
+dr_dir <- file.path(repo_root, "semi-transfer-learning", "DR_9_new")
+combined_file <- file.path(derived_dir, "final_combined_results.RData")
+dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 ```
 
 ```{r}
@@ -27,18 +45,17 @@ colors <- c(
 
 ```{r}
 library(ggplot2)
-setwd("../semi-transfer-learning/DR_9_new")
 sample_sizes <- c(100, 200)
 similarity_values <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
 combined_results <- list()
 for (n in sample_sizes) {
   for (sim in similarity_values) {
-    folder_path <- paste0("../semi-transfer-learning/DR_9_new/mse_n_",n, "_simi_",sim)
+    folder_path <- file.path(dr_dir, paste0("mse_n_", n, "_simi_", sim))
     rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
     
-    seed_val <- 0
     for (file in rdata_files) {
-      seed_val <- seed_val + 1
+      seed_val <- suppressWarnings(as.integer(tools::file_path_sans_ext(basename(file))))
+      if (is.na(seed_val)) stop("Cannot infer a numeric seed from ", file, call. = FALSE)
       
       temp_env <- new.env()
       load(file, envir = temp_env)
@@ -64,9 +81,12 @@ for (n in sample_sizes) {
   }
 }
 
+if (length(combined_results) == 0L) {
+  stop("No DR results found under semi-transfer-learning/DR_9_new.", call. = FALSE)
+}
 final_combined <- do.call(rbind, combined_results)
 
-save(final_combined, file = "final_combined_results.RData")
+save(final_combined, file = combined_file)
 
 ```
 
@@ -78,9 +98,7 @@ library(ggplot2)
 library(tibble)
 library(stringr)
 # Load the processed data
-setwd("../semi-transfer-learning/DR_9_new")
-
-load("final_combined_results.RData")  # Adjust path if necessary
+load(combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -172,7 +190,7 @@ p2 <- ggplot(non_outlier_data |> filter(Method!="Para_Transfer"), aes(x = Method
 
 # Save and display the plot
 ggsave(
-  filename = "../semi-transfer-learning/DR_mean_mse_plot_no_outliers.pdf",
+  filename = file.path(figure_dir, "DR_mean_mse_plot_no_outliers.pdf"),
   plot = p2,
   width = 10,
   height = 6,
@@ -187,10 +205,8 @@ print(p2)
 # Start
 
 ```{r}
-setwd("../semi-transfer-learning/DR_9_new")
-
 # Load the processed data
-load("final_combined_results.RData")  # Adjust path if necessary
+load(combined_file)
 
 # If method names are stored as row names, convert them to a "Method" column.
 if (!"Method" %in% colnames(final_combined)) {
@@ -281,8 +297,8 @@ p1 <- ggplot(non_outlier_data |> filter(Method!="Para_Transfer"), aes(x = Method
 
 # Save and display the plot
 ggsave(
-  filename = "../semi-transfer-learning/DR_maximum_mse_plot_no_outliers.pdf",
-  plot = p2,
+  filename = file.path(figure_dir, "DR_maximum_mse_plot_no_outliers.pdf"),
+  plot = p1,
   width = 10,
   height = 6,
   dpi = 300
@@ -306,7 +322,7 @@ combined_plot <- plot_grid(p2, p1, ncol = 1, align = "v")
 combined_plot
 
 
-ggsave(filename = "combined_DR_group_plot.pdf", 
+ggsave(filename = file.path(figure_dir, "combined_DR_group_plot.pdf"),
        plot = combined_plot, 
        width = 12,    # Increase this value to make the plot wider
        height = 8,    # Adjust the height accordingly if needed
@@ -382,10 +398,10 @@ p <- ggplot(df_filtered, aes(x = task, y = similarity, fill = value)) +
   labs(x = "Task", y = "Similarity") +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.spacing = unit(1, "lines")
+    panel.spacing = grid::unit(1, "lines")
   )
 ggsave(
-  filename = "../semi-transfer-learning/DR_heat_map_DR.pdf",  # Specify the filename
+  filename = file.path(figure_dir, "DR_heat_map_DR.pdf"),
   plot = p,                        # Specify the plot object
   width = 12, height = 6,             # Adjust dimensions as needed
   dpi = 300                           # Set the resolution
@@ -419,12 +435,12 @@ p <- ggplot(df_filtered, aes(x = task, y = similarity, fill = value)) +
     legend.title = element_text(size = 18),
     legend.text = element_text(size = 18),
     axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.spacing = unit(1.5, "lines"),
+    panel.spacing = grid::unit(1.5, "lines"),
     legend.position = "bottom"
   )
 
 ggsave(
-  "../semi-transfer-learning/DR_heat_map_DR.pdf",
+  file.path(figure_dir, "DR_heat_map_DR.pdf"),
   plot = p,
   width = 16,
   height = 8,
@@ -433,4 +449,3 @@ ggsave(
 
 p
 ```
-

@@ -1,4 +1,49 @@
+find_repo_root <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  script_arg <- grep("^--file=", args, value = TRUE)
+  starts <- getwd()
+  if (length(script_arg) > 0) {
+    script_path <- sub("^--file=", "", script_arg[[1]])
+    starts <- c(dirname(normalizePath(script_path, mustWork = TRUE)), starts)
+  }
+
+  for (start in unique(starts)) {
+    current <- normalizePath(start, mustWork = TRUE)
+    repeat {
+      if (file.exists(file.path(current, "TransferSemi", "DESCRIPTION")) &&
+          dir.exists(file.path(current, "real_data"))) {
+        return(current)
+      }
+      parent <- dirname(current)
+      if (identical(parent, current)) break
+      current <- parent
+    }
+  }
+  stop("Cannot locate the repository root.", call. = FALSE)
+}
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 0L) {
+  stop("Usage: Rscript real_data/correlations.R", call. = FALSE)
+}
+
+repo_root <- find_repo_root()
+real_data_dir <- file.path(repo_root, "real_data")
+package_r_dir <- file.path(repo_root, "TransferSemi", "R")
+corr_override <- Sys.getenv("TRANSFERSEMI_CORR_OUTPUT_DIR", unset = "")
+if (nzchar(corr_override)) {
+  expanded_override <- path.expand(corr_override)
+  is_absolute <- grepl("^(/|[A-Za-z]:[/\\\\]|\\\\\\\\)", expanded_override)
+  out_dir <- if (is_absolute) expanded_override else file.path(repo_root, expanded_override)
+} else {
+  out_dir <- file.path(real_data_dir, "corr")
+}
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
 set.seed(1)
+if (requireNamespace("torch", quietly = TRUE)) {
+  torch::torch_manual_seed(1)
+}
 
 library(glmnet)
 library(ggplot2)
@@ -162,24 +207,29 @@ safe_cor <- function(x, y) {
   y <- as.numeric(y)
   min_len <- min(length(x), length(y))
   if (min_len <= 1) return(NA_real_)
-  suppressWarnings(cor(x[1:min_len], y[1:min_len], use = "complete.obs"))
+  x <- x[seq_len(min_len)]
+  y <- y[seq_len(min_len)]
+  complete <- is.finite(x) & is.finite(y)
+  if (sum(complete) <= 1L) return(NA_real_)
+  if (isTRUE(all.equal(stats::sd(x[complete]), 0)) ||
+      isTRUE(all.equal(stats::sd(y[complete]), 0))) {
+    return(NA_real_)
+  }
+  suppressWarnings(stats::cor(x[complete], y[complete]))
 }
 
 ############################################################
 # Source external code
 ############################################################
-source("prediction_per_site.R")
+source(file.path(real_data_dir, "prediction_per_site.R"))
 
-original_wd <- getwd()
-setwd("../TransferSemi/R")
-files <- list.files(pattern = "\\.R$")
+files <- list.files(package_r_dir, pattern = "\\.R$", full.names = TRUE)
 invisible(lapply(files, source))
-setwd(original_wd)
 ############################################################
 # Load data
 ############################################################
-cape <- read.csv("cape_pseudo.csv")
-ninr <- read.csv("ninr_pseudo.csv")
+cape <- read.csv(file.path(real_data_dir, "cape_pseudo.csv"))
+ninr <- read.csv(file.path(real_data_dir, "ninr_pseudo.csv"))
 
 cape_copy <- cape[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
 ninr_copy <- ninr[, colnames(cape)[-c(4, 5, 6, 7, 10, 11)]]
@@ -288,8 +338,6 @@ for (index in 1:ntask) {
 }
 max.dim <- 1
 p <- ncol(X[[1]])
-out_dir <- "corr"
-if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 saveRDS(X, file = file.path(out_dir, "X.Rdata"))
 
 ############################################################
@@ -773,8 +821,8 @@ for (t in 1:ntask) {
 
 saveRDS(eval_ARMUL, file = file.path(out_dir, "eval_ARMUL_w_race.Rdata"))
 saveRDS(eval_pERM, file = file.path(out_dir,"eval_pERM_w_race.Rdata"))
-saveRDS(eval_ARMUL_train, file = "eval_ARMUL_train_w_race.Rdata")
-saveRDS(eval_pERM_train, file = "eval_pERM_train_w_race.Rdata")
+saveRDS(eval_ARMUL_train, file = file.path(out_dir, "eval_ARMUL_train_w_race.Rdata"))
+saveRDS(eval_pERM_train, file = file.path(out_dir, "eval_pERM_train_w_race.Rdata"))
 
 ############################################################
 # Pooled method
@@ -1158,12 +1206,12 @@ for (index in 1:ntask) {
   )
 }
 
-saveRDS(eval_Sai_train, file = "eval_Sai_train_w_race.Rdata")
-saveRDS(eval_para_transfer_tuned_train, file = "eval_para_transfer_tuned_train_w_race.Rdata")
-saveRDS(eval_para_transfer_untuned_train, file = "eval_para_transfer_untuned_train_w_race.Rdata")
-saveRDS(eval_no_transfer_train, file = "eval_no_transfer_train_w_race.Rdata")
-saveRDS(eval_semipara_transfer_untuned_train, file = "eval_semipara_transfer_untuned_train_w_race.Rdata")
-saveRDS(eval_semipara_transfer_tuned_train, file = "eval_semipara_transfer_tuned_train_w_race.Rdata")
+saveRDS(eval_Sai_train, file = file.path(out_dir, "eval_Sai_train_w_race.Rdata"))
+saveRDS(eval_para_transfer_tuned_train, file = file.path(out_dir, "eval_para_transfer_tuned_train_w_race.Rdata"))
+saveRDS(eval_para_transfer_untuned_train, file = file.path(out_dir, "eval_para_transfer_untuned_train_w_race.Rdata"))
+saveRDS(eval_no_transfer_train, file = file.path(out_dir, "eval_no_transfer_train_w_race.Rdata"))
+saveRDS(eval_semipara_transfer_untuned_train, file = file.path(out_dir, "eval_semipara_transfer_untuned_train_w_race.Rdata"))
+saveRDS(eval_semipara_transfer_tuned_train, file = file.path(out_dir, "eval_semipara_transfer_tuned_train_w_race.Rdata"))
 
 ############################################################
 # Summary objects
@@ -1198,13 +1246,13 @@ res_df <- format_list_to_df(eval_res)
 mean_mse_by_model <- aggregate(Value_Function ~ Model, data = res_df, FUN = mean)
 print(mean_mse_by_model)
 
-saveRDS(eval_res, file = "all_eval_methods_w_race.RDS")
-saveRDS(coef_res, file = "all_coef_methods_w_race.RDS")
+saveRDS(eval_res, file = file.path(out_dir, "all_eval_methods_w_race.RDS"))
+saveRDS(coef_res, file = file.path(out_dir, "all_coef_methods_w_race.RDS"))
 write.csv(res_df,
-          "all_methods_summary_w_race.csv",
+          file.path(out_dir, "all_methods_summary_w_race.csv"),
           row.names = FALSE)
 write.csv(mean_mse_by_model,
-          "mean_value_function_by_model_w_race.csv",
+          file.path(out_dir, "mean_value_function_by_model_w_race.csv"),
           row.names = FALSE)
 
 ############################################################
@@ -1226,7 +1274,7 @@ for (method_name in method_names) {
 }
 
 saveRDS(all_f_hat,
-        "f_hat_results_w_race.rds")
+        file.path(out_dir, "f_hat_results_w_race.rds"))
 
 ############################################################
 # Correlations of f_hat
@@ -1250,7 +1298,7 @@ for (method_name in names(all_f_hat)) {
   all_correlations[[method_name]] <- cor_mat
 }
 
-save(all_correlations, file = "correlations.RData")
+save(all_correlations, file = file.path(out_dir, "correlations.RData"))
 
 correlations_df <- do.call(rbind, lapply(names(all_correlations), function(method_name) {
   cor_mat <- all_correlations[[method_name]]
@@ -1261,47 +1309,6 @@ correlations_df <- do.call(rbind, lapply(names(all_correlations), function(metho
     Correlation = as.vector(cor_mat)
   )
 }))
-
-write.csv(
-  correlations_df,
-  "correlations.csv",
-  row.names = FALSE
-)
-out_dir <- "/corr"
-if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
-saveRDS(eval_para_transfer_tuned, file = file.path(out_dir, "eval_para_transfer_tuned_w_race.Rdata"))
-saveRDS(eval_para_transfer_untuned, file = file.path(out_dir, "eval_para_transfer_untuned_w_race.Rdata"))
-saveRDS(eval_Sai, file = file.path(out_dir, "eval_Sai_transfer_w_race.Rdata"))
-saveRDS(eval_no_transfer, file = file.path(out_dir, "eval_no_transfer_w_race.Rdata"))
-saveRDS(eval_ARMUL, file = file.path(out_dir, "eval_ARMUL_w_race.Rdata"))
-saveRDS(eval_pERM, file = file.path(out_dir, "eval_pERM_w_race.Rdata"))
-saveRDS(eval_ARMUL_train, file = file.path(out_dir, "eval_ARMUL_train_w_race.Rdata"))
-saveRDS(eval_pERM_train, file = file.path(out_dir, "eval_pERM_train_w_race.Rdata"))
-saveRDS(eval_pool, file = file.path(out_dir, "eval_pool_w_race.Rdata"))
-saveRDS(fit_each_site_nonpar_tranfer, file = file.path(out_dir, "fit_each_site_nonpar_tranfer_w_race.Rdata"))
-saveRDS(eval_semipara_transfer_untuned, file = file.path(out_dir, "eval_semipara_transfer_untuned_w_race.Rdata"))
-saveRDS(eval_semipara_transfer_tuned, file = file.path(out_dir, "eval_semipara_transfer_tuned_w_race.Rdata"))
-saveRDS(eval_Sai_train, file = file.path(out_dir, "eval_Sai_train_w_race.Rdata"))
-saveRDS(eval_para_transfer_tuned_train, file = file.path(out_dir, "eval_para_transfer_tuned_train_w_race.Rdata"))
-saveRDS(eval_para_transfer_untuned_train, file = file.path(out_dir, "eval_para_transfer_untuned_train_w_race.Rdata"))
-saveRDS(eval_no_transfer_train, file = file.path(out_dir, "eval_no_transfer_train_w_race.Rdata"))
-saveRDS(eval_semipara_transfer_untuned_train, file = file.path(out_dir, "eval_semipara_transfer_untuned_train_w_race.Rdata"))
-saveRDS(eval_semipara_transfer_tuned_train, file = file.path(out_dir, "eval_semipara_transfer_tuned_train_w_race.Rdata"))
-saveRDS(eval_res, file = file.path(out_dir, "all_eval_methods_w_race.RDS"))
-saveRDS(coef_res, file = file.path(out_dir, "all_coef_methods_w_race.RDS"))
-saveRDS(all_f_hat, file = file.path(out_dir, "f_hat_results_w_race.rds"))
-save(all_correlations, file = file.path(out_dir, "correlations.RData"))
-write.csv(
-  res_df,
-  file.path(out_dir, "all_methods_summary_w_race.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  mean_mse_by_model,
-  file.path(out_dir, "mean_value_function_by_model_w_race.csv"),
-  row.names = FALSE
-)
 
 write.csv(
   correlations_df,

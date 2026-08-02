@@ -59,10 +59,21 @@ expand_tasks_with_spline <- function(data, spline_funs) {
 
 pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
                        C1 = 0.001, C2 = 0.001, info = FALSE, tol = 1e-3,
-                       link = c("linear","logistic"), X_test=NULL, X_test_list=NULL) {
+                       link = c("linear","logistic"), X_test=NULL, X_test_list=NULL,
+                       seed = NULL, device = NULL) {
   
   link <- match.arg(link)
   stopifnot(requireNamespace("torch", quietly = TRUE))
+  if (is.null(device)) {
+    device <- torch::torch_device("cpu")
+  }
+  if (!is.null(seed)) {
+    if (length(seed) != 1L || is.na(seed)) {
+      stop("seed must be NULL or one non-missing value")
+    }
+    set.seed(seed)
+    torch::torch_manual_seed(seed)
+  }
   
   Ttasks <- length(data)
   n_vec  <- vapply(data, function(d) nrow(d$X), numeric(1))
@@ -84,8 +95,8 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
   idx_ranges <- split(seq_len(n_tot), rep(seq_len(Ttasks), times = n_vec))
   
   # Torch tensors
-  X_t <- torch::torch_tensor(X, dtype = torch::torch_float64())
-  y_t <- torch::torch_tensor(y, dtype = torch::torch_float64())
+  X_t <- torch::torch_tensor(X, dtype = torch::torch_float64(), device = device)
+  y_t <- torch::torch_tensor(y, dtype = torch::torch_float64(), device = device)
   
   # Init A_hat: (T x p x r)
   A_hat_arr <- array(
@@ -97,7 +108,12 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
                   nrow = p * nbasis, ncol = r)
     A_hat_arr[t,,] <- qr.Q(qr(tmp))[, 1:r, drop = FALSE]
   }
-  A_hat <- torch::torch_tensor(A_hat_arr, requires_grad = TRUE, dtype = torch::torch_float64())
+  A_hat <- torch::torch_tensor(
+    A_hat_arr,
+    requires_grad = TRUE,
+    dtype = torch::torch_float64(),
+    device = device
+  )
   
   # Init A_bar: (p x r)
   A_bar_mat <- matrix(rnorm(p * nbasis * r, mean = 0, sd = 1),
@@ -105,9 +121,18 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
 
   # Orthonormalize columns (QR)
   A_bar_mat <- qr.Q(qr(A_bar_mat))[, 1:r, drop = FALSE]
-  A_bar <- torch::torch_tensor(A_bar_mat, requires_grad = TRUE, dtype = torch::torch_float64())
+  A_bar <- torch::torch_tensor(
+    A_bar_mat,
+    requires_grad = TRUE,
+    dtype = torch::torch_float64(),
+    device = device
+  )
   # Init theta: (r x T)
-  theta <- torch::torch_randn(c(r, Ttasks), dtype = torch::torch_float64())
+  theta <- torch::torch_randn(
+    c(r, Ttasks),
+    dtype = torch::torch_float64(),
+    device = device
+  )
   # normalize each column (task) to have unit norm
   theta <- theta / (torch::torch_norm(theta, dim = 1, keepdim = TRUE) + 1e-8)
   theta$requires_grad_(TRUE)
@@ -152,9 +177,13 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
   
   # Step 1 loss
   loss_step1 <- function(A_hat, theta, A_bar) {
-    s <- torch::torch_tensor(0, dtype = torch::torch_float64())
+    s <- torch::torch_tensor(0, dtype = torch::torch_float64(), device = device)
     for (t in seq_len(Ttasks)) {
-      rr_idx <- torch::torch_tensor(idx_ranges[[t]], dtype = torch::torch_int64())
+      rr_idx <- torch::torch_tensor(
+        idx_ranges[[t]],
+        dtype = torch::torch_int64(),
+        device = device
+      )
       Xt <- X_t$index_select(1, rr_idx)
       yt <- y_t$index_select(1, rr_idx)
       
@@ -217,14 +246,23 @@ pERM_torch <- function(data, r = 3, nbasis=5, lr = 1e-2, max_iter = 200,
     c(p * nbasis, Ttasks),
     fill_value = 2,
     requires_grad = TRUE,
-    dtype = torch::torch_float64()
+    dtype = torch::torch_float64(),
+    device = device
   )
   
   loss_step2 <- function(beta) {
-    s <- torch::torch_tensor(0, dtype = torch::torch_float64())
-    beta1_t <- torch::torch_tensor(beta1, dtype = torch::torch_float64())
+    s <- torch::torch_tensor(0, dtype = torch::torch_float64(), device = device)
+    beta1_t <- torch::torch_tensor(
+      beta1,
+      dtype = torch::torch_float64(),
+      device = device
+    )
     for (t in seq_len(Ttasks)) {
-      rr_idx <- torch::torch_tensor(idx_ranges[[t]], dtype = torch::torch_int64())
+      rr_idx <- torch::torch_tensor(
+        idx_ranges[[t]],
+        dtype = torch::torch_int64(),
+        device = device
+      )
       Xt <- X_t$index_select(1, rr_idx)
       yt <- y_t$index_select(1, rr_idx)
       
