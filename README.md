@@ -122,10 +122,10 @@ N_SEEDS=100 bash scripts/submit_all.sh
 ```
 
 The tracked DR artifacts establish 100-replicate coverage for their settings,
-and the main PLM tree is nearly complete at 100 replicates. The tracked CATE
-and fine-tuning artifacts contain only seed 1, so the repository does not prove
-that their historical manuscript runs used 100 replicates; author confirmation
-is required for that historical claim.
+and the main PLM tree is nearly complete at 100 replicates. The bundled CATE
+and fine-tuning artifacts now contain seeds 1--10 for their configured
+settings. They still do not prove that the historical manuscript runs used 100
+replicates; author confirmation is required for that claim.
 
 Restricted/pseudo-data jobs are a separate opt-in workflow:
 
@@ -183,21 +183,21 @@ The audited checkout contains:
 
 | Artifact tree | Files | Coverage note |
 |---|---:|---|
-| `semi-transfer-learning/CATE_dim8` | 38 | Seed 1 results for 12 settings plus nuisance diagnostics; not a full replicate grid |
+| `semi-transfer-learning/CATE_dim8` | 600 | Seeds 1--10 for 12 result settings, plus outcome-model and propensity-score diagnostics; not a 100-replicate grid |
 | `semi-transfer-learning/DR_9_new` | 2,200 | 100 files in each of 22 tracked settings |
 | `semi-transfer-learning/results_4_dim8` | 2,400 | Precomputed legacy PLM artifacts |
 | `semi-transfer-learning/results_5_dim8` | 2,200 | Precomputed PLM artifacts |
 | `semi-transfer-learning/results_11_dim8` | 3,591 | Main PLM artifacts; some settings are incomplete |
 | `semi-transfer-learning/MSE_visualization_data.rds` | 1 | Precomputed PLM, CATE, and DR inputs for every plot in `MSE_visualization.Rmd`; raw simulation directories are not needed to render this notebook |
-| `semi-transfer-learning/results_finetune_new8` | 22 | Seed 1 fine-tuning results and summaries |
-| `semi-transfer-learning/results_finetune_new_time8` | 11 | Seed 1 timing summaries |
+| `semi-transfer-learning/results_finetune_new8` | 220 | Seeds 1--10 for 11 fine-tuning settings, including result and summary files |
+| `semi-transfer-learning/results_finetune_new_time8` | 110 | Seeds 1--10 timing summaries for 11 fine-tuning settings |
 | `real_data/result_real_data` | 141 | Missing seeds 7, 9, 12, 36, 53, 65, 77, 91, and 148 from 1–150 |
+| `real_data/corr` | 25 | Supplied correlation-workflow inputs and summaries; serialized objects do not embed input provenance |
 
 The checkout does **not** contain
 `results_before_dim8`, `results_compare_linear_dim8`, `results_6_dim8`,
-`time_6_dim8`, `time_6_dim20`, or generated
-`real_data/corr` artifacts. Notebooks that require them now fail or skip with an
-explicit message instead of silently substituting another dataset.
+`time_6_dim8`, or `time_6_dim20`. Notebooks that require them now fail or skip
+with an explicit message instead of silently substituting another dataset.
 
 ## 7. Render figures in clean R processes
 
@@ -206,7 +206,8 @@ Run each notebook in its own R process:
 ```bash
 Rscript -e 'rmarkdown::render("visualization_github/MSE_visualization.Rmd", envir=new.env(parent=globalenv()))'
 Rscript -e 'rmarkdown::render("visualization_github/PLM_Visualization_PLM.Rmd", envir=new.env(parent=globalenv()))'
-Rscript -e 'rmarkdown::render("visualization_github/finetune_visualize.Rmd", envir=new.env(parent=globalenv()))'
+Rscript -e 'rmarkdown::render("visualization_github/finetune_available_visualization.Rmd", envir=new.env(parent=globalenv()))'
+Rscript -e 'rmarkdown::render("visualization_github/finetune_strategy_comparison.Rmd", envir=new.env(parent=globalenv()))'
 Rscript -e 'rmarkdown::render("visualization_github/read_real_analysis.Rmd", envir=new.env(parent=globalenv()))'
 Rscript -e 'rmarkdown::render("visualization_github/sim_visualization_CATE.Rmd", envir=new.env(parent=globalenv()))'
 Rscript -e 'rmarkdown::render("visualization_github/sim_visualization_DR.Rmd", envir=new.env(parent=globalenv()))'
@@ -288,3 +289,79 @@ Several correlation artifacts retain legacy names ending in `.Rdata` even
 though they are written with `saveRDS()`. Read those files with `readRDS()`,
 not `load()`. Files written with `save()` use `.RData` and are read with
 `load()`.
+
+## 10. Reproducibility review changes
+
+The following changes address the seven suggestions in the reproducibility
+review. `REPRODUCIBILITY_AUDIT.md` records the original findings and proposed
+checks, while `REPRODUCIBILITY_VERIFICATION.md` records the commands actually
+run and their outcomes.
+
+### 10.1 Canonical CATE directory and visualization paths
+
+`semi-transfer-learning/CATE_dim8/` is the canonical CATE results directory.
+The precomputed artifacts were moved out of `TransferSemi/R/`, and
+`simulation/test_CATE.R` and
+`visualization_github/sim_visualization_CATE.Rmd` use the canonical location.
+The producers create result directories recursively before writing. The
+notebooks use the actual repository locations for PLM, real-data, and
+correlation inputs; `MSE_visualization.Rmd` now reads the self-contained
+`semi-transfer-learning/MSE_visualization_data.rds` instead of depending on
+raw simulation trees.
+
+### 10.2 Repository-relative paths
+
+Runtime R, R Markdown, and shell code no longer uses the reported OneDrive,
+Pictures, `/home/`, `/Users/`, or Windows author-specific paths. The audited
+scripts and notebooks locate the repository root programmatically or consume
+the exported `TRANSFERSEMI_REPO_ROOT`; their generated files are written
+beneath repository-rooted output directories.
+
+### 10.3 Correlation output directory
+
+`real_data/correlations.R` no longer assigns `/corr`, which would target the
+filesystem root. It uses the repository-relative `real_data/corr/` default or
+the explicit `TRANSFERSEMI_CORR_OUTPUT_DIR` override and creates the selected
+directory recursively before writing.
+
+### 10.4 Locked environment and package metadata
+
+The project-level `renv.lock` records the verified R 4.3.3 environment and its
+direct and transitive package dependencies. On 2026-08-02, `renv::status()` in
+that environment reported `No issues found -- the project is in a consistent
+state.` Section 1 gives the commands for restoring and checking the environment.
+`TransferSemi/DESCRIPTION` supplies the package title, anonymous author and
+maintainer, description, MIT license, imports, suggested workflow packages,
+and LibTorch/LibLantern system requirements. Its imports include `glmnet`,
+`gglasso`, `splines`, and `torch`, and `NAMESPACE` is consistent with the
+package implementation. Section 1 records the verified torch 0.16.3, CPU
+LibTorch 2.7.1, and LibLantern 0.1.0.9004 combination and the backend
+verification commands.
+
+### 10.5 Configurable simulation repetitions
+
+`scripts/submit.sh`, `scripts/submit_CATE.sh`, `scripts/submit_DR.sh`, and the
+fine-tuning driver use validated `N_SEEDS` and `START_SEED` values instead of a
+hard-coded one-seed loop. The safe default is a one-seed smoke run; request a
+100-seed grid with `N_SEEDS=100 bash scripts/submit_all.sh`. No portable
+wall-clock estimate is claimed because the repository does not establish one;
+runtime depends on the cluster, queue, method, and parameter setting.
+
+### 10.6 Step-by-step reproduction workflow
+
+Sections 1--7 provide the requested sequence: restore the R environment, build
+and check the package, run a local smoke test or submit Slurm simulations, run
+the public pseudo-data or restricted-data workflow as available, and render
+the notebooks. Section 7 identifies the self-contained MSE notebook that can
+be rendered immediately from supplied precomputed data without rerunning the
+simulations.
+
+### 10.7 Pseudo-data construction and scope
+
+`real_data/create_pseudo_data.R` is the repository-relative form of the
+author-supplied generator. Section 8 documents its column-wise marginal
+synthesis, fixed seeds, treatment reconstruction, simulated outcome, and
+privacy limitations. It also distinguishes pseudo-data analogue outputs from
+manuscript results that require the restricted CAPE/NINR inputs. The only
+canonical public copies are `real_data/cape_pseudo.csv` and
+`real_data/ninr_pseudo.csv`; duplicate root-level copies were removed.

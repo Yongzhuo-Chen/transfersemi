@@ -39,7 +39,8 @@ else
   notebooks=(
     "visualization_github/MSE_visualization.Rmd"
     "visualization_github/PLM_Visualization_PLM.Rmd"
-    "visualization_github/finetune_visualize.Rmd"
+    "visualization_github/finetune_available_visualization.Rmd"
+    "visualization_github/finetune_strategy_comparison.Rmd"
     "visualization_github/sim_visualization_CATE.Rmd"
     "visualization_github/sim_visualization_DR.Rmd"
   )

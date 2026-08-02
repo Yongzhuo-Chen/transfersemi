@@ -9,7 +9,6 @@ work_dir = "results_5_dim8"
 setwd(work_dir)
 library(dplyr)
 library(reshape2)
-library(labelled)
 library(ggplot2)
 files <- list.files(pattern = "\\.RData$", full.names = TRUE)
 for (file in files) {
@@ -125,7 +124,6 @@ work_dir = "semi-transfer-learning/results_6_dim8"
 setwd(work_dir)
 library(dplyr)
 library(reshape2)
-library(labelled)
 library(ggplot2)
 files <- list.files(pattern = "\\.RData$", full.names = TRUE)
 for (file in files) {
@@ -580,4 +578,3 @@ combined <- grid.arrange(p, p_runtime_bar, ncol = 1)
 
 ggsave("semi-transfer-learning/tuning_strategy_compare.pdf", combined, width = 10, height = 8)
 ```
-
