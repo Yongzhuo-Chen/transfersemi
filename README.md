@@ -121,6 +121,18 @@ Request 100 seeds for every configured simulation grid explicitly:
 N_SEEDS=100 bash scripts/submit_all.sh
 ```
 
+The timing workflow is separate from `submit_all.sh`. To run 100 timing seeds
+for its configured grid and render the timing notebook after every job
+succeeds, use:
+
+```bash
+START_SEED=1 N_SEEDS=100 RENDER_AFTER=1 bash scripts/time_submit.sh
+```
+
+Use `START_SEED` to extend an existing run without overwriting completed
+seeds. `RENDER_AFTER=1` submits `time_visualize.Rmd` with successful-completion
+dependencies on all timing jobs created by that invocation.
+
 The tracked DR artifacts establish 100-replicate coverage for their settings,
 and the main PLM tree is nearly complete at 100 replicates. The bundled CATE
 and fine-tuning artifacts now contain seeds 1--10 for their configured
@@ -152,7 +164,7 @@ Logs are created beneath `logs/`.
 | `simulation/test_PLM.R` | Main PLM simulation | `results_11_dim<dim>/` |
 | `simulation/PLM_fintune.R` | PLM fine-tuning | `results_finetune_new<dim>/` and `results_finetune_new_time<dim>/` |
 | `simulation/test_PLM_before.R` | Legacy PLM implementation | `results_5_resotre_dim<dim>/` |
-| `simulation/PLM_time.R` | Development timing/grid workflow | `results_6_dim<dim>/` and `time_6_dim<dim>/_n_<n>_simi_<similarity>lambda_len<lambda_length>/` |
+| `simulation/PLM_time.R` | Development timing/grid workflow | `time_6_dim<dim>/_n_<n>_simi_<similarity>lambda_len<lambda_length>/` |
 | `real_data/create_pseudo_data.R` | Generate public pseudo-data from local restricted inputs | `real_data/cape_pseudo.csv` and `real_data/ninr_pseudo.csv`, or an explicit output directory |
 | `real_data/RealDataAnalysis.R` | Seeded public pseudo-data analysis | `real_data/result_real_data/`, or `TRANSFERSEMI_REAL_OUTPUT_DIR` |
 | `real_data/correlations.R` | Pseudo-data correlation artifacts | `real_data/corr/`, or `TRANSFERSEMI_CORR_OUTPUT_DIR` |
@@ -191,13 +203,14 @@ The audited checkout contains:
 | `semi-transfer-learning/MSE_visualization_data.rds` | 1 | Precomputed PLM, CATE, and DR inputs for every plot in `MSE_visualization.Rmd`; raw simulation directories are not needed to render this notebook |
 | `semi-transfer-learning/results_finetune_new8` | 220 | Seeds 1--10 for 11 fine-tuning settings, including result and summary files |
 | `semi-transfer-learning/results_finetune_new_time8` | 110 | Seeds 1--10 timing summaries for 11 fine-tuning settings |
+| `semi-transfer-learning/time_6_dim20` | 200 | Seeds 1--100 for $n=100$ and $n=200$ at similarity 0 and dimension 20 |
 | `real_data/result_real_data` | 141 | Missing seeds 7, 9, 12, 36, 53, 65, 77, 91, and 148 from 1–150 |
 | `real_data/corr` | 25 | Supplied correlation-workflow inputs and summaries; serialized objects do not embed input provenance |
 
 The checkout does **not** contain
 `results_before_dim8`, `results_compare_linear_dim8`, `results_6_dim8`,
-`time_6_dim8`, or `time_6_dim20`. Notebooks that require them now fail or skip
-with an explicit message instead of silently substituting another dataset.
+or `time_6_dim8`. Notebooks that require them now fail or skip with an explicit
+message instead of silently substituting another dataset.
 
 ## 7. Render figures in clean R processes
 
@@ -220,6 +233,8 @@ tree is absent is expected to stop with its documented preflight message.
 `MSE_visualization.Rmd` is the exception: it reads the supplied
 `semi-transfer-learning/MSE_visualization_data.rds`, so all of its plots can be
 rendered without rerunning or retaining the simulation result trees.
+`time_visualize.Rmd` can likewise be rendered immediately from the supplied
+100-seed dimension-20 timing results; unavailable timing settings are skipped.
 
 ## 8. Pseudo-data and restricted-data limitations
 

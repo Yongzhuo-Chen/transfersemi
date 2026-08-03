@@ -26,6 +26,13 @@ ns <- c(100, 200)
 simis <- seq(0, 1, by = 0.2)
 lambda_length <- 100L
 
+# Match the producer's paste0() representation used by simulation/PLM_time.R.
+# In particular, integer-valued similarities are written as "0" and "1",
+# rather than "0.0" and "1.0".
+format_similarity_dir <- function(x) {
+  format(x, scientific = FALSE, trim = TRUE)
+}
+
 methods <- c("Late Fusion", "Late Fusion with Nuisance")
 
 colors <- c(
@@ -46,7 +53,12 @@ for (dim in dims) {
     for (simi in simis) {
       folder <- file.path(
         root,
-        sprintf("_n_%d_simi_%slambda_len%d", n, format(simi, nsmall = 1), lambda_length)
+        sprintf(
+          "_n_%d_simi_%slambda_len%d",
+          n,
+          format_similarity_dir(simi),
+          lambda_length
+        )
       )
       if (!dir.exists(folder)) next
 
