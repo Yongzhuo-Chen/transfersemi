@@ -292,10 +292,8 @@ not `load()`. Files written with `save()` use `.RData` and are read with
 
 ## 10. Reproducibility review changes
 
-The following changes address the seven suggestions in the reproducibility
-review. `REPRODUCIBILITY_AUDIT.md` records the original findings and proposed
-checks, while `REPRODUCIBILITY_VERIFICATION.md` records the commands actually
-run and their outcomes.
+The following summarizes the changes made in response to the seven
+reproducibility-review suggestions.
 
 ### 10.1 Canonical CATE directory and visualization paths
 
