@@ -76,10 +76,12 @@ Rscript simulation/test_PLM.R 100 0 1 8 100
 Rscript simulation/PLM_fintune.R 200 0 1 8
 ```
 
-These are computational analyses, not short unit tests. No runtime estimate is
-claimed here.
+These are computational analyses, not short unit tests. Representative elapsed
+runtimes on the CPU computing environment used for our runs are approximately
+24 minutes for CATE, 7 minutes for DR, and 23 minutes for PLM per seed. Actual
+runtime depends on the computing environment and parameter setting.
 
-The historical/development entry points remain available:
+These scripts are retained for historical purposes and are not required to reproduce the main mnuscript results:
 
 ```bash
 export TRANSFERSEMI_OUTPUT_ROOT=outputs/smoke-legacy
@@ -136,14 +138,17 @@ dependencies on all timing jobs created by that invocation.
 The tracked DR artifacts establish 100-replicate coverage for their settings,
 and the main PLM tree is nearly complete at 100 replicates. The bundled CATE
 and fine-tuning artifacts now contain seeds 1--10 for their configured
-settings. They still do not prove that the historical manuscript runs used 100
-replicates; author confirmation is required for that claim.
+settings. 
+
+The simulation results reported in the paper use 100 random seeds for each
+parameter combination. Therefore, reproducing the reported simulation results
+requires setting `N_SEEDS=100`:
 
 Restricted/pseudo-data jobs are a separate opt-in workflow:
 
 ```bash
 N_REAL_SEEDS=1 bash scripts/submit_real_data_jobs.sh
-N_REAL_SEEDS=150 bash scripts/submit_real_data_jobs.sh
+N_REAL_SEEDS=100 bash scripts/submit_real_data_jobs.sh
 ```
 
 They can also be included in the master submission with
