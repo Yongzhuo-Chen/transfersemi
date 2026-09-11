@@ -621,13 +621,14 @@ combined_plot <- ggdraw(combined_plot) +
 
 combined_plot
 
-ggsave(
-  filename = file.path(figure_dir, "MSE_combined_plot.pdf"),
-  plot = combined_plot,
-  width = 25,
-  height = 10,
-  dpi = 300
-)
+# Not saved: this horizontal mean-MSE layout is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "MSE_combined_plot.pdf"),
+#   plot = combined_plot,
+#   width = 25,
+#   height = 10,
+#   dpi = 300
+# )
 
 
 ```
@@ -722,7 +723,7 @@ combined_plot <- ggdraw(combined_plot) +
 combined_plot
 
 ggsave(
-  filename = file.path(figure_dir, "MSE_Mean_combined_plot_ms.pdf"),
+  filename = file.path(figure_dir, "MSE_Mean_combined_plot_sm.pdf"),
   plot = combined_plot,
   width = 25,
   height = 25,
@@ -846,12 +847,13 @@ PLM_maximum <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
    # strip.text = element_text(size = 6, angle = 20)
   )  + scale_y_log10()+
   scale_fill_manual(values = colors)
-ggsave(
-  filename = file.path(figure_dir, "PLM_maximum_mse_plot.pdf"),
-  plot = PLM_maximum,                  # Specify the plot object
-  width = 10, height = 6,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: the standalone PLM maximum-MSE plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "PLM_maximum_mse_plot.pdf"),
+#   plot = PLM_maximum,
+#   width = 10, height = 6,
+#   dpi = 300
+# )
 PLM_maximum
 
 ```
@@ -1150,13 +1152,14 @@ combined_plot <- ggdraw(combined_plot) +
 
 combined_plot
 
-ggsave(
-  filename = file.path(figure_dir, "MSE_max_combined_plot.pdf"),
-  plot = combined_plot,
-  width = 25,
-  height = 10,
-  dpi = 300
-)
+# Not saved: this horizontal maximum-MSE layout is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "MSE_max_combined_plot.pdf"),
+#   plot = combined_plot,
+#   width = 25,
+#   height = 10,
+#   dpi = 300
+# )
 ```
 
 ```{r}
@@ -1314,13 +1317,14 @@ for (task_name in names(PLM_MSE_plots)) {
 
   PLM_MSE_plots[[task_name]] <- task_plot
   print(task_plot)
-  ggsave(
-    file.path(figure_dir, paste0("PLM_MSE_", task_name, ".pdf")),
-    task_plot,
-    width = 10,
-    height = 6,
-    dpi = 300
-  )
+  # Not saved: individual PLM task plots are retained in the HTML only.
+  # ggsave(
+  #   file.path(figure_dir, paste0("PLM_MSE_", task_name, ".pdf")),
+  #   task_plot,
+  #   width = 10,
+  #   height = 6,
+  #   dpi = 300
+  # )
 }
 ```
 
@@ -1448,13 +1452,14 @@ for (model_name in names(task_comparison_plots)) {
     guides(fill = guide_legend(nrow = 2, byrow = TRUE))
 
   print(with_legend)
-  ggsave(
-    file.path(figure_dir, paste0(model_name, "_Task_Comparison.pdf")),
-    without_legend,
-    width = 18,
-    height = 8,
-    dpi = 300
-  )
+  # Not saved: only the requested version with a legend is written to PDF.
+  # ggsave(
+  #   file.path(figure_dir, paste0(model_name, "_Task_Comparison.pdf")),
+  #   without_legend,
+  #   width = 18,
+  #   height = 8,
+  #   dpi = 300
+  # )
   ggsave(
     file.path(figure_dir, paste0(model_name, "_Task_Comparison_with_legend.pdf")),
     with_legend,
@@ -1674,13 +1679,14 @@ for (model_name in names(negative_transfer_plots)) {
     file.path(negative_transfer_dir, paste0(model_name, "_task_level_negative_transfer_rates.csv")),
     row.names = FALSE
   )
-  ggsave(
-    file.path(figure_dir, paste0(model_name, "_task_level_negative_transfer_all_methods.pdf")),
-    negative_transfer_plots[[model_name]],
-    width = 18,
-    height = 8,
-    dpi = 300
-  )
+  # Not saved: the full five-task plot is retained in the HTML only.
+  # ggsave(
+  #   file.path(figure_dir, paste0(model_name, "_task_level_negative_transfer_all_methods.pdf")),
+  #   negative_transfer_plots[[model_name]],
+  #   width = 18,
+  #   height = 8,
+  #   dpi = 300
+  # )
 }
 ```
 

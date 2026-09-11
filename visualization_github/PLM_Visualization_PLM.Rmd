@@ -416,12 +416,13 @@ plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
     #strip.text = element_text(size = 6, angle = 20)
   ) + scale_y_log10()+
   scale_fill_manual(values = colors)
-ggsave(
-  filename = file.path(figure_dir, "PLM_mean_mse_plot.pdf"),
-  plot = plot1,                        # Specify the plot object
-  width = 10, height = 6,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "PLM_mean_mse_plot.pdf"),
+#   plot = plot1,
+#   width = 10, height = 6,
+#   dpi = 300
+# )
 plot1
 all_data
 ```
@@ -556,12 +557,13 @@ plot2 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
    # strip.text = element_text(size = 6, angle = 20)
   )  + scale_y_log10()+
   scale_fill_manual(values = colors)
-ggsave(
-  filename = file.path(figure_dir, "PLM_maximum_mse_plot.pdf"),
-  plot = plot2,                        # Specify the plot object
-  width = 10, height = 6,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "PLM_maximum_mse_plot.pdf"),
+#   plot = plot2,
+#   width = 10, height = 6,
+#   dpi = 300
+# )
 plot2
 all_data
 ```
@@ -582,11 +584,12 @@ combined_plot <- cowplot::plot_grid(p1, p2, ncol = 1, align = "v")
 
 combined_plot
 
-ggsave(filename = file.path(figure_dir, "Combined_PLM_group_plot.pdf"),
-       plot = combined_plot, 
-       width = 12,    # Increase this value to make the plot wider
-       height = 8,    # Adjust the height accordingly if needed
-       dpi = 300)
+# Not saved: this combined plot is retained in the HTML only.
+# ggsave(filename = file.path(figure_dir, "Combined_PLM_group_plot.pdf"),
+#        plot = combined_plot,
+#        width = 12,
+#        height = 8,
+#        dpi = 300)
 
 ```
 
@@ -668,12 +671,13 @@ p <- ggplot(df_long, aes(x = similarity, y = task, fill = value)) +
 
 p
 p
-ggsave(
-  filename = file.path(figure_dir, "PLM_heat_map_PLM.pdf"),
-  plot = p,                        # Specify the plot object
-  width = 12, height = 8,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved here: the final formatted heat map below writes the requested PDF.
+# ggsave(
+#   filename = file.path(figure_dir, "PLM_heat_map_PLM.pdf"),
+#   plot = p,
+#   width = 12, height = 8,
+#   dpi = 300
+# )
 ```
 
 

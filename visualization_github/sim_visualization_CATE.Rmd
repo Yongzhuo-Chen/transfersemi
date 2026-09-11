@@ -216,14 +216,14 @@ p2 <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Method)) +
   scale_fill_manual(values = color
   ) +scale_y_log10()
 
-# Save and display the plot
-ggsave(
-  filename = file.path(figure_dir, "CATE_mean_mse_plot_no_outliers.pdf"),
-  plot = p2,
-  width = 10,
-  height = 6,
-  dpi = 300
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "CATE_mean_mse_plot_no_outliers.pdf"),
+#   plot = p2,
+#   width = 10,
+#   height = 6,
+#   dpi = 300
+# )
 
 print(p2)
 
@@ -344,14 +344,14 @@ p1 <- ggplot(non_outlier_data, aes(x = Method, y = MaxMSE, fill = Method)) +
   ) +
   scale_fill_manual(values = color) + scale_y_log10()
 
-# Save and display the plot
-ggsave(
-  filename = file.path(figure_dir, "CATE_maximum_mse_plot_no_outliers.pdf"),
-  plot = p1,
-  width = 10,
-  height = 6,
-  dpi = 300
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "CATE_maximum_mse_plot_no_outliers.pdf"),
+#   plot = p1,
+#   width = 10,
+#   height = 6,
+#   dpi = 300
+# )
 print(p1)
 
 ```
@@ -365,11 +365,12 @@ combined_plot <- cowplot::plot_grid(p2, p1, ncol = 1, align = "v")
 
 combined_plot
 
-ggsave(filename = file.path(figure_dir, "combined_CATE_group_plot.pdf"),
-       plot = combined_plot, 
-       width = 12,    # Increase this value to make the plot wider
-       height = 8,    # Adjust the height accordingly if needed
-       dpi = 300)
+# Not saved: this combined plot is retained in the HTML only.
+# ggsave(filename = file.path(figure_dir, "combined_CATE_group_plot.pdf"),
+#        plot = combined_plot,
+#        width = 12,
+#        height = 8,
+#        dpi = 300)
 ```
 
 
@@ -384,11 +385,12 @@ combined_plot <- cowplot::plot_grid(
   rel_heights = c(1, 1)  # adjust relative heights if needed
 )
 
-ggsave(
-  file.path(figure_dir, "combined_CATE_group_plot_large.pdf"),
-  combined_plot,
-  width = 12, height = 16, dpi = 300
-)
+# Not saved: this large combined plot is retained in the HTML only.
+# ggsave(
+#   file.path(figure_dir, "combined_CATE_group_plot_large.pdf"),
+#   combined_plot,
+#   width = 12, height = 16, dpi = 300
+# )
 
 ```
 

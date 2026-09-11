@@ -32,7 +32,8 @@ figure_dir <- file.path(
   repo_root, "outputs", "figures", "finetune_available_visualization"
 )
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+# This notebook keeps its plots in the rendered HTML and therefore does not
+# create an empty standalone-figure directory.
 
 library(ggplot2)
 ```
@@ -97,12 +98,13 @@ mean_plot <- ggplot(
   labs(x = "Similarity", y = "Mean task MSE", fill = "Method") +
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom")
-ggsave(
-  file.path(figure_dir, "fine_tuning_mean_mse.pdf"),
-  mean_plot,
-  width = 12,
-  height = 6
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   file.path(figure_dir, "fine_tuning_mean_mse.pdf"),
+#   mean_plot,
+#   width = 12,
+#   height = 6
+# )
 mean_plot
 
 maximum_plot <- ggplot(
@@ -114,12 +116,13 @@ maximum_plot <- ggplot(
   labs(x = "Similarity", y = "Maximum task MSE", fill = "Method") +
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom")
-ggsave(
-  file.path(figure_dir, "fine_tuning_maximum_mse.pdf"),
-  maximum_plot,
-  width = 12,
-  height = 6
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   file.path(figure_dir, "fine_tuning_maximum_mse.pdf"),
+#   maximum_plot,
+#   width = 12,
+#   height = 6
+# )
 maximum_plot
 ```
 
@@ -163,11 +166,12 @@ runtime_plot <- ggplot(
   facet_wrap(~n, scales = "free_y", labeller = label_both) +
   labs(x = "Similarity", y = "Runtime (minutes)") +
   theme_minimal(base_size = 14)
-ggsave(
-  file.path(figure_dir, "fine_tuning_runtime.pdf"),
-  runtime_plot,
-  width = 12,
-  height = 6
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   file.path(figure_dir, "fine_tuning_runtime.pdf"),
+#   runtime_plot,
+#   width = 12,
+#   height = 6
+# )
 runtime_plot
 ```

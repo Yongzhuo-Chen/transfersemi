@@ -108,12 +108,13 @@ plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
     legend.position = "none"
     #strip.text = element_text(size = 6, angle = 20)
   ) + scale_y_log10()
-ggsave(
-  filename = "mean_mse_plot.pdf",  # Specify the filename
-  plot = plot1,                        # Specify the plot object
-  width = 10, height = 12,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this legacy notebook is not part of the supported renderer.
+# ggsave(
+#   filename = "mean_mse_plot.pdf",
+#   plot = plot1,
+#   width = 10, height = 12,
+#   dpi = 300
+# )
 original = all_data
 rm(all_data)
 ```
@@ -222,12 +223,13 @@ plot1 <- ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
     legend.position = "none"
     #strip.text = element_text(size = 6, angle = 20)
   ) + scale_y_log10()
-ggsave(
-  filename = "mean_mse_plot.pdf",  # Specify the filename
-  plot = plot1,                        # Specify the plot object
-  width = 10, height = 12,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this legacy notebook is not part of the supported renderer.
+# ggsave(
+#   filename = "mean_mse_plot.pdf",
+#   plot = plot1,
+#   width = 10, height = 12,
+#   dpi = 300
+# )
 original2 = all_data
 original2$Method = "Late Fusion with Nuisnace (more parameters)"
 rm(all_data)
@@ -351,12 +353,13 @@ p=ggplot(all_data, aes(x = Method, y = Value, fill = Method)) +
     legend.title = element_text(size = 20),
     legend.text = element_text(size = 15),
   ) #+ scale_y_log10(limits = c(1e-5, NA))
-ggsave(
-  filename = "fitune_method_comparison.pdf",  # Specify the filename
-  plot = p,                        # Specify the plot object
-  width = 10, height = 8,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this legacy notebook is not part of the supported renderer.
+# ggsave(
+#   filename = "fitune_method_comparison.pdf",
+#   plot = p,
+#   width = 10, height = 8,
+#   dpi = 300
+# )
 p
 ```
 
@@ -523,13 +526,14 @@ p_runtime_box <- ggplot(rt, aes(x = Method, y = Value, fill = Method)) +
 
 p_runtime_box
 
-ggsave(
-  filename = "runtime_boxplot.pdf",
-  plot = p_runtime_box,
-  width = 14,
-  height = 10,
-  dpi = 300
-)
+# Not saved: this legacy notebook is not part of the supported renderer.
+# ggsave(
+#   filename = "runtime_boxplot.pdf",
+#   plot = p_runtime_box,
+#   width = 14,
+#   height = 10,
+#   dpi = 300
+# )
 rt_summary <- rt[, {
   q1  <- quantile(Value, 0.25, na.rm = TRUE)
   q3  <- quantile(Value, 0.75, na.rm = TRUE)
@@ -576,5 +580,6 @@ library(gridExtra)
 
 combined <- grid.arrange(p, p_runtime_bar, ncol = 1)
 
-ggsave("semi-transfer-learning/tuning_strategy_compare.pdf", combined, width = 10, height = 8)
+# Not saved: the supported finetune_strategy_comparison.Rmd writes this figure.
+# ggsave("semi-transfer-learning/tuning_strategy_compare.pdf", combined, width = 10, height = 8)
 ```

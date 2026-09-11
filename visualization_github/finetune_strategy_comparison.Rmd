@@ -181,8 +181,9 @@ p_implemented_mse <- ggplot(implemented_mse, aes(Method, mean_mse, fill = Method
     axis.text.x = element_blank(), axis.ticks.x = element_blank(),
     legend.position = "none", strip.text = element_text(size = 12)
   )
-ggsave(file.path(figure_dir, "mean_mse_plot.pdf"), p_implemented_mse,
-       width = 10, height = 12, dpi = 300)
+# Not saved: this component plot is retained in the HTML only.
+# ggsave(file.path(figure_dir, "mean_mse_plot.pdf"), p_implemented_mse,
+#        width = 10, height = 12, dpi = 300)
 p_implemented_mse
 ```
 
@@ -199,8 +200,9 @@ p_global_mse <- ggplot(global_mse, aes(Method, mean_mse, fill = Method)) +
     axis.text.x = element_blank(), axis.ticks.x = element_blank(),
     legend.position = "none", strip.text = element_text(size = 12)
   )
-ggsave(file.path(figure_dir, "global_finetuned_mean_mse.pdf"), p_global_mse,
-       width = 10, height = 6, dpi = 300)
+# Not saved: this component plot is retained in the HTML only.
+# ggsave(file.path(figure_dir, "global_finetuned_mean_mse.pdf"), p_global_mse,
+#        width = 10, height = 6, dpi = 300)
 p_global_mse
 ```
 
@@ -237,8 +239,9 @@ p_mse_comparison <- ggplot(mse_comparison, aes(Method, mean_mse, fill = Method))
     legend.title = element_text(size = 16), legend.text = element_text(size = 13),
     legend.position = "bottom"
   )
-ggsave(file.path(figure_dir, "finetune_method_comparison.pdf"), p_mse_comparison,
-       width = 10, height = 8, dpi = 300)
+# Not saved: this component plot is retained in the HTML only.
+# ggsave(file.path(figure_dir, "finetune_method_comparison.pdf"), p_mse_comparison,
+#        width = 10, height = 8, dpi = 300)
 p_mse_comparison
 ```
 
@@ -297,8 +300,9 @@ p_runtime_box <- ggplot(runtime_comparison,
     legend.title = element_text(size = 16), legend.text = element_text(size = 13),
     legend.position = "bottom"
   )
-ggsave(file.path(figure_dir, "runtime_boxplot.pdf"), p_runtime_box,
-       width = 14, height = 10, dpi = 300)
+# Not saved: this component plot is retained in the HTML only.
+# ggsave(file.path(figure_dir, "runtime_boxplot.pdf"), p_runtime_box,
+#        width = 14, height = 10, dpi = 300)
 p_runtime_box
 ```
 
@@ -331,8 +335,9 @@ p_runtime_bar <- ggplot(runtime_summary, aes(Method, median, fill = Method)) +
     legend.title = element_text(size = 16), legend.text = element_text(size = 13),
     legend.position = "bottom"
   )
-ggsave(file.path(figure_dir, "runtime_barplot.pdf"), p_runtime_bar,
-       width = 14, height = 10, dpi = 300)
+# Not saved: this component plot is retained in the HTML only.
+# ggsave(file.path(figure_dir, "runtime_barplot.pdf"), p_runtime_bar,
+#        width = 14, height = 10, dpi = 300)
 p_runtime_bar
 ```
 

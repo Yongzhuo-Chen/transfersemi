@@ -232,14 +232,44 @@ Rscript -e 'rmarkdown::render("visualization_github/sim_visualization_DR.Rmd", e
 Rscript -e 'rmarkdown::render("visualization_github/time_visualize.Rmd", envir=new.env(parent=globalenv()))'
 ```
 
-Notebooks write derived data and figures beneath `outputs/` and no longer
-change the process working directory. Rendering a notebook whose listed input
-tree is absent is expected to stop with its documented preflight message.
+Notebooks write derived data beneath `outputs/derived/`, write the selected
+standalone PDF exports beneath `outputs/figures/`, and no longer change the
+process working directory. Plots without a selected PDF export remain visible
+in the rendered HTML. In particular, `finetune_available_visualization.Rmd`
+and `time_visualize.Rmd` do not create empty subdirectories under
+`outputs/figures/`. Rendering a notebook whose listed input tree is absent is
+expected to stop with its documented preflight message.
 `MSE_visualization.Rmd` is the exception: it reads the supplied
 `semi-transfer-learning/MSE_visualization_data.rds`, so all of its plots can be
 rendered without rerunning or retaining the simulation result trees.
 `time_visualize.Rmd` can likewise be rendered immediately from the supplied
 100-seed dimension-20 timing results; unavailable timing settings are skipped.
+
+To render all eight supported notebooks, including the real-data and timing
+notebooks, run:
+
+```bash
+RENDER_REAL_DATA=1 RENDER_TIME=1 bash scripts/render_visualizations.sh
+```
+
+A clean complete render creates exactly these 14 standalone PDF figures:
+
+```text
+outputs/figures/finetune_strategy_comparison/tuning_strategy_compare.pdf
+outputs/figures/MSE_visualization/MSE_max_combined_plot_sm.pdf
+outputs/figures/MSE_visualization/MSE_Mean_combined_plot_sm.pdf
+outputs/figures/MSE_visualization/CAT_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures/MSE_visualization/DR_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures/MSE_visualization/PLM_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures/MSE_visualization/PLM_Task_Comparison_with_legend.pdf
+outputs/figures/MSE_visualization/DR_Task_Comparison_with_legend.pdf
+outputs/figures/MSE_visualization/CATE_Task_Comparison_with_legend.pdf
+outputs/figures/PLM_Visualization_PLM/PLM_heat_map_PLM.pdf
+outputs/figures/sim_visualization_CATE/CATE_heat_map_CATE.pdf
+outputs/figures/sim_visualization_DR/DR_heat_map_DR.pdf
+outputs/figures/read_real_analysis/corr.pdf
+outputs/figures/read_real_analysis/combined_err.pdf
+```
 
 ## 8. Pseudo-data and restricted-data limitations
 
@@ -361,9 +391,7 @@ verification commands.
 `scripts/submit.sh`, `scripts/submit_CATE.sh`, `scripts/submit_DR.sh`, and the
 fine-tuning driver use validated `N_SEEDS` and `START_SEED` values instead of a
 hard-coded one-seed loop. The safe default is a one-seed smoke run; request a
-100-seed grid with `N_SEEDS=100 bash scripts/submit_all.sh`. No portable
-wall-clock estimate is claimed because the repository does not establish one;
-runtime depends on the cluster, queue, method, and parameter setting.
+100-seed grid with `N_SEEDS=100 bash scripts/submit_all.sh`.
 
 ### 10.6 Step-by-step reproduction workflow
 

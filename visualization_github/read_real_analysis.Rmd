@@ -312,12 +312,13 @@ p<-ggplot(df, aes(x = Model, y = MSE.mean, color=Model)) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
-ggsave(
-  filename = file.path(figure_dir, "maximum_real_data.pdf"),
-  plot = p,                        # Specify the plot object
-  width = 10, height = 6,             # Adjust dimensions as needed
-  dpi = 300                           # Set the resolution
-)
+# Not saved: this plot is retained in the HTML only.
+# ggsave(
+#   filename = file.path(figure_dir, "maximum_real_data.pdf"),
+#   plot = p,
+#   width = 10, height = 6,
+#   dpi = 300
+# )
 p
 ```
 
@@ -754,6 +755,7 @@ p=ggplot(df, aes(x = Method, y = MSE.mean, color = Method)) +
        color = "Method") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(file.path(figure_dir, "combined_err_by_summary.pdf"), p, width = 10, height = 6)
+# Not saved: this alternate summary is retained in the HTML only.
+# ggsave(file.path(figure_dir, "combined_err_by_summary.pdf"), p, width = 10, height = 6)
 p
 ```
