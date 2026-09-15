@@ -117,10 +117,13 @@ At clusters that require an explicit Slurm account or QoS, set the standard
 submission drivers also export the resolved repository root because Slurm runs
 a copied worker script from its spool directory.
 
-Request 100 seeds for every configured simulation grid explicitly:
+Request 100 seeds for every configured simulation grid explicitly. Keep the
+new run outside `semi-transfer-learning/` so the supplied previous results
+remain unchanged:
 
 ```bash
-N_SEEDS=100 bash scripts/submit_all.sh
+TRANSFERSEMI_OUTPUT_ROOT=outputs/new_simulation_results \
+  N_SEEDS=100 bash scripts/submit_all.sh
 ```
 
 The timing workflow is separate from `submit_all.sh`. To run 100 timing seeds
@@ -193,8 +196,8 @@ drivers; `time_submit.sh` is a separate development timing submission.
   `semi-transfer-learning/MSE_visualization_data.rds` (PLM, CATE, and DR
   task-level results used by `visualization_github/MSE_visualization.Rmd`)
 - Figure sources: `visualization_github/`
-- Newly generated notebook artifacts: `outputs/derived/` and
-  `outputs/figures/`
+- Newly generated notebook artifacts: `outputs/derived/`,
+  `outputs/figures_previous_results/`, and `outputs/figures/`
 
 The audited checkout contains:
 
@@ -233,12 +236,15 @@ Rscript -e 'rmarkdown::render("visualization_github/time_visualize.Rmd", envir=n
 ```
 
 Notebooks write derived data beneath `outputs/derived/`, write the selected
-standalone PDF exports beneath `outputs/figures/`, and no longer change the
-process working directory. Plots without a selected PDF export remain visible
-in the rendered HTML. In particular, `finetune_available_visualization.Rmd`
-and `time_visualize.Rmd` do not create empty subdirectories under
-`outputs/figures/`. Rendering a notebook whose listed input tree is absent is
-expected to stop with its documented preflight message.
+standalone PDF exports beneath `outputs/figures_previous_results/`, and no
+longer change the process working directory. The directory name indicates that
+these plots are produced from the previously saved result inputs listed in
+Section 6; rendering the figures does not rerun the simulations. Plots without
+a selected PDF export remain visible in the rendered HTML. In particular,
+`finetune_available_visualization.Rmd` and `time_visualize.Rmd` do not create
+empty subdirectories under `outputs/figures_previous_results/`. Rendering a
+notebook whose listed input tree is absent is expected to stop with its
+documented preflight message.
 `MSE_visualization.Rmd` is the exception: it reads the supplied
 `semi-transfer-learning/MSE_visualization_data.rds`, so all of its plots can be
 rendered without rerunning or retaining the simulation result trees.
@@ -246,29 +252,83 @@ rendered without rerunning or retaining the simulation result trees.
 100-seed dimension-20 timing results; unavailable timing settings are skipped.
 
 To render all eight supported notebooks, including the real-data and timing
-notebooks, run:
+notebooks, from the supplied previously saved results, run the dedicated
+previous-results entry point:
 
 ```bash
-RENDER_REAL_DATA=1 RENDER_TIME=1 bash scripts/render_visualizations.sh
+bash scripts/render_previous_results_visualizations.sh
 ```
 
-A clean complete render creates exactly these 14 standalone PDF figures:
+It is pinned to `semi-transfer-learning/` and saves PDFs under
+`outputs/figures_previous_results/`. It never rebuilds
+`MSE_visualization_data.rds` from another result tree.
+
+After the isolated simulation submission shown in Section 4 has finished,
+render figures exclusively from those new seed-level files with:
+
+```bash
+TRANSFERSEMI_SIMULATION_RESULTS_ROOT=outputs/new_simulation_results \
+  bash scripts/render_simulated_results_visualizations.sh
+```
+
+The new-results entry point rebuilds its MSE plotting aggregate from the raw
+PLM, CATE, and DR files beneath the selected root, points the remaining
+simulation notebooks at the same root, and saves their 12 standalone PDFs
+under `outputs/figures/`. It does not render the unrelated real-data notebook.
+As a convenience, it also accepts the simulation variable directly, so this
+equivalent command works:
+
+```bash
+TRANSFERSEMI_OUTPUT_ROOT=outputs/new_simulation_results \
+  bash scripts/render_simulated_results_visualizations.sh
+```
+
+If neither variable is set, the new-results entry point reads
+`semi-transfer-learning/`; use that default only when those directories really
+contain the intended new run. `TRANSFERSEMI_SIMULATION_RESULTS_ROOT` takes
+precedence over `TRANSFERSEMI_OUTPUT_ROOT`.
+
+The two workflows separate both standalone figures and derived plotting data:
+
+| Result source | Figure output | Derived-data output |
+|---|---|---|
+| Supplied previous results | `outputs/figures_previous_results/` | `outputs/derived/figures_previous_results/` |
+| Newly simulated results | `outputs/figures/` | `outputs/derived/figures/` |
+
+The visualization code is organized as follows:
+
+- `scripts/render_previous_results_visualizations.sh`: fixed entry point for
+  previously saved results.
+- `scripts/render_simulated_results_visualizations.sh`: fixed entry point for
+  newly simulated results; validates the result tree and builds the plotting
+  aggregate.
+- `scripts/render_visualizations.sh`: shared notebook renderer used by both
+  entry points.
+- `visualization_github/build_simulated_visualization_data.R`: converts raw
+  seed-level PLM, CATE, and DR result files into the input expected by
+  `MSE_visualization.Rmd`.
+- `visualization_github/visualization_config.R`: routes every notebook to the
+  selected input root and the matching, separated output directories.
+- `visualization_github/*.Rmd`: figure definitions and `ggsave()` calls.
+
+A clean previous-results render creates exactly these 14 standalone PDF
+figures:
 
 ```text
-outputs/figures/finetune_strategy_comparison/tuning_strategy_compare.pdf
-outputs/figures/MSE_visualization/MSE_max_combined_plot_sm.pdf
-outputs/figures/MSE_visualization/MSE_Mean_combined_plot_sm.pdf
-outputs/figures/MSE_visualization/CAT_task1_task4_task5_negative_transfer_all_methods.pdf
-outputs/figures/MSE_visualization/DR_task1_task4_task5_negative_transfer_all_methods.pdf
-outputs/figures/MSE_visualization/PLM_task1_task4_task5_negative_transfer_all_methods.pdf
-outputs/figures/MSE_visualization/PLM_Task_Comparison_with_legend.pdf
-outputs/figures/MSE_visualization/DR_Task_Comparison_with_legend.pdf
-outputs/figures/MSE_visualization/CATE_Task_Comparison_with_legend.pdf
-outputs/figures/PLM_Visualization_PLM/PLM_heat_map_PLM.pdf
-outputs/figures/sim_visualization_CATE/CATE_heat_map_CATE.pdf
-outputs/figures/sim_visualization_DR/DR_heat_map_DR.pdf
-outputs/figures/read_real_analysis/corr.pdf
-outputs/figures/read_real_analysis/combined_err.pdf
+outputs/figures_previous_results/finetune_strategy_comparison/tuning_strategy_compare.pdf
+outputs/figures_previous_results/MSE_visualization/MSE_max_combined_plot_sm.pdf
+outputs/figures_previous_results/MSE_visualization/MSE_Mean_combined_plot_sm.pdf
+outputs/figures_previous_results/MSE_visualization/CAT_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures_previous_results/MSE_visualization/DR_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures_previous_results/MSE_visualization/PLM_task1_task4_task5_negative_transfer_all_methods.pdf
+outputs/figures_previous_results/MSE_visualization/PLM_Task_Comparison_with_legend.pdf
+outputs/figures_previous_results/MSE_visualization/DR_Task_Comparison_with_legend.pdf
+outputs/figures_previous_results/MSE_visualization/CATE_Task_Comparison_with_legend.pdf
+outputs/figures_previous_results/PLM_Visualization_PLM/PLM_heat_map_PLM.pdf
+outputs/figures_previous_results/sim_visualization_CATE/CATE_heat_map_CATE.pdf
+outputs/figures_previous_results/sim_visualization_DR/DR_heat_map_DR.pdf
+outputs/figures_previous_results/read_real_analysis/corr.pdf
+outputs/figures_previous_results/read_real_analysis/combined_err.pdf
 ```
 
 ## 8. Pseudo-data and restricted-data limitations

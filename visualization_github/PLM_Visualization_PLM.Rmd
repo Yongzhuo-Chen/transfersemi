@@ -18,13 +18,15 @@ find_repo_root <- function(start = getwd()) {
   stop("Cannot locate the repository root.", call. = FALSE)
 }
 repo_root <- find_repo_root()
-derived_dir <- file.path(repo_root, "outputs", "derived", "PLM_Visualization_PLM")
-figure_dir <- file.path(repo_root, "outputs", "figures", "PLM_Visualization_PLM")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "PLM_Visualization_PLM")
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
-work_dir <- file.path(repo_root, "semi-transfer-learning", "results_4_dim8")
-results_11_dir <- file.path(repo_root, "semi-transfer-learning", "results_11_dim8")
-compare_linear_dir <- file.path(repo_root, "semi-transfer-learning", "results_compare_linear_dim8")
+work_dir <- file.path(config$results_root, "results_4_dim8")
+results_11_dir <- file.path(config$results_root, "results_11_dim8")
+compare_linear_dir <- file.path(config$results_root, "results_compare_linear_dim8")
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4", "#D55E00")
 colors <- c(
   "Baseline" = "#FFB3BA",                # soft pastel pink
@@ -131,7 +133,8 @@ compare_all <- bind_rows(lapply(sim_grid, function(s) {
 }))
 if (nrow(compare_all) == 0L) {
   message(
-    "Skipping comparison-only content: semi-transfer-learning/results_compare_linear_dim8 is not available."
+    "Skipping comparison-only content; input is not available: ",
+    compare_work_dir
   )
 }
 
@@ -252,7 +255,7 @@ read_folder_make_output <- function(folder_path, n, similarity) {
 # inferred for it.
 if (!dir.exists(work_dir)) {
   stop(
-    "Required PLM input semi-transfer-learning/results_11_dim8 is not available.",
+    "Required PLM input is not available: ", work_dir,
     call. = FALSE
   )
 }

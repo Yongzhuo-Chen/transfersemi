@@ -17,9 +17,11 @@ find_repo_root <- function(start = getwd()) {
   stop("Cannot locate the repository root.", call. = FALSE)
 }
 repo_root <- find_repo_root()
-derived_dir <- file.path(repo_root, "outputs", "derived", "sim_visualization_DR")
-figure_dir <- file.path(repo_root, "outputs", "figures", "sim_visualization_DR")
-dr_dir <- file.path(repo_root, "semi-transfer-learning", "DR_9_new")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "sim_visualization_DR")
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
+dr_dir <- file.path(config$results_root, "DR_9_new")
 combined_file <- file.path(derived_dir, "final_combined_results.RData")
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
@@ -82,7 +84,7 @@ for (n in sample_sizes) {
 }
 
 if (length(combined_results) == 0L) {
-  stop("No DR results found under semi-transfer-learning/DR_9_new.", call. = FALSE)
+  stop("No DR results found under ", dr_dir, ".", call. = FALSE)
 }
 final_combined <- do.call(rbind, combined_results)
 

@@ -10,6 +10,8 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 if [[ -n ${TRANSFERSEMI_REPO_ROOT:-} ]]; then
   REPO_ROOT=$TRANSFERSEMI_REPO_ROOT
+elif [[ -f "$SCRIPT_DIR/../TransferSemi/DESCRIPTION" ]]; then
+  REPO_ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
 elif [[ -n ${SLURM_SUBMIT_DIR:-} ]]; then
   REPO_ROOT=$SLURM_SUBMIT_DIR
 else

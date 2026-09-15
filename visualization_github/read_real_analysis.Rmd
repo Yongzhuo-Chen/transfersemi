@@ -17,8 +17,10 @@ find_repo_root <- function(start = getwd()) {
   stop("Cannot locate the repository root.", call. = FALSE)
 }
 repo_root <- find_repo_root()
-derived_dir <- file.path(repo_root, "outputs", "derived", "read_real_analysis")
-figure_dir <- file.path(repo_root, "outputs", "figures", "read_real_analysis")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "read_real_analysis")
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
 resolve_repo_path <- function(value, default) {
   if (!nzchar(value)) return(default)
   expanded <- path.expand(value)

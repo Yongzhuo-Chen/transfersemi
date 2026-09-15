@@ -19,18 +19,12 @@ find_repo_root <- function(start = getwd()) {
 }
 
 repo_root <- find_repo_root()
-result_dir <- file.path(
-  repo_root, "semi-transfer-learning", "results_finetune_new8"
-)
-time_dir <- file.path(
-  repo_root, "semi-transfer-learning", "results_finetune_new_time8"
-)
-derived_dir <- file.path(
-  repo_root, "outputs", "derived", "finetune_available_visualization"
-)
-figure_dir <- file.path(
-  repo_root, "outputs", "figures", "finetune_available_visualization"
-)
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "finetune_available_visualization")
+result_dir <- file.path(config$results_root, "results_finetune_new8")
+time_dir <- file.path(config$results_root, "results_finetune_new_time8")
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 # This notebook keeps its plots in the rendered HTML and therefore does not
 # create an empty standalone-figure directory.

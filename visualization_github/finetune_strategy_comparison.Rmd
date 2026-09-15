@@ -19,17 +19,25 @@ find_repo_root <- function(start = getwd()) {
 }
 
 repo_root <- find_repo_root()
-base_dir <- file.path(repo_root, "semi-transfer-learning")
-implemented_mse_dir <- file.path(base_dir, "results_5_dim8")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "finetune_strategy_comparison")
+base_dir <- config$results_root
+implemented_mse_name <- if (config$mode == "simulated") {
+  "results_11_dim8"
+} else {
+  "results_5_dim8"
+}
+implemented_mse_pattern <- if (config$mode == "simulated") {
+  "^mse_n_([0-9]+)_simi_([0-9.]+)lambda_len100$"
+} else {
+  "^mse_n_([0-9]+)_simi_([0-9.]+)$"
+}
+implemented_mse_dir <- file.path(base_dir, implemented_mse_name)
 global_mse_dir <- file.path(base_dir, "results_finetune_new8")
 implemented_time_dir <- file.path(base_dir, "results_11_dim8")
 global_time_dir <- file.path(base_dir, "results_finetune_new_time8")
-derived_dir <- file.path(
-  repo_root, "outputs", "derived", "finetune_strategy_comparison"
-)
-figure_dir <- file.path(
-  repo_root, "outputs", "figures", "finetune_strategy_comparison"
-)
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -142,7 +150,7 @@ global fine-tuned results are rendered below.
 ```{r load-mse}
 implemented_mse <- read_mse_collection(
   implemented_mse_dir,
-  "^mse_n_([0-9]+)_simi_([0-9.]+)$",
+  implemented_mse_pattern,
   implemented_label
 ) %>%
   filter(round(similarity, 1) %in% keep_similarity)
@@ -161,8 +169,8 @@ data.frame(
   Method = c(global_label, implemented_label, more_parameters_label),
   Available_records = c(nrow(global_mse), nrow(implemented_mse), 0L),
   Input = c(
-    "semi-transfer-learning/results_finetune_new8",
-    "semi-transfer-learning/results_5_dim8",
+    file.path(basename(base_dir), "results_finetune_new8"),
+    file.path(basename(base_dir), implemented_mse_name),
     "results_6_dim8 is not present"
   )
 )

@@ -17,11 +17,13 @@ find_repo_root <- function(start = getwd()) {
   stop("Cannot locate the repository root.", call. = FALSE)
 }
 repo_root <- find_repo_root()
-derived_dir <- file.path(repo_root, "outputs", "derived", "sim_visualization_CATE")
-figure_dir <- file.path(repo_root, "outputs", "figures", "sim_visualization_CATE")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "sim_visualization_CATE")
+derived_dir <- config$derived_dir
+figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
-cate_dir <- file.path(repo_root, "semi-transfer-learning", "CATE_dim8")
+cate_dir <- file.path(config$results_root, "CATE_dim8")
 final_combined_file <- file.path(derived_dir, "final_combined_results.RData")
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4")
 color <- c(

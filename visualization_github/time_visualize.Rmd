@@ -18,8 +18,10 @@ find_repo_root <- function(start = getwd()) {
   stop("Cannot locate the repository root.", call. = FALSE)
 }
 repo_root <- find_repo_root()
-BASE <- file.path(repo_root, "semi-transfer-learning")
-figure_dir <- file.path(repo_root, "outputs", "figures", "time_visualize")
+source(file.path(repo_root, "visualization_github", "visualization_config.R"))
+config <- visualization_config(repo_root, "time_visualize")
+BASE <- config$results_root
+figure_dir <- config$figure_dir
 # This notebook keeps its plots in the rendered HTML and therefore does not
 # create an empty standalone-figure directory.
 dims <- c(8, 20)
@@ -89,7 +91,7 @@ for (dim in dims) {
 all_data <- rbindlist(all_rows, fill = TRUE)
 if (nrow(all_data) == 0L) {
   stop(
-    "No lambda_len100 timing inputs were found under semi-transfer-learning/time_6_dim8 or time_6_dim20.",
+    "No lambda_len100 timing inputs were found under ", BASE, ".",
     call. = FALSE
   )
 }
