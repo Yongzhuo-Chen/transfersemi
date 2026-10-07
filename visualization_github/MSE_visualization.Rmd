@@ -730,6 +730,230 @@ ggsave(
 )
 ```
 
+## Mean MSE combined panel, horizontal layout, main similarity values only
+
+Alternate version of the figure above: panels A (PLM), B (DR), C (CATE) are
+arranged left to right (`ncol = 3`) instead of stacked top to bottom, and
+`similarity` is restricted to `main_similarity_list` (0, 0.4, 0.8, 1) instead
+of the full six-value grid. Rebuilt directly from the stable
+`plm_results`/`cate_results`/`dr_results` inputs -- not from `all_data` /
+`non_outlier_data`, which later chunks below go on to overwrite -- so this
+panel's data cannot be silently clobbered by edits elsewhere in the notebook.
+
+```{r}
+library(dplyr)
+library(stringr)
+library(ggplot2)
+
+# --- Panel A: PLM ---
+plm_main_methods <- c("Baseline", "Sai_Transfer", "Para_Transfer_Tuned", "NonPara_Transfer_Tuned",
+                       "Net_Transfer", "ARMUL_transfer", "pERM_Transfer", "Pooled")
+plm_main_data <- bind_rows(lapply(c(100, 200), function(sample_n) {
+  bind_rows(lapply(main_similarity_list, function(sim) {
+    subset_data <- plm_results %>% filter(n == sample_n, near(similarity, sim))
+    bind_rows(lapply(plm_main_methods, function(m) {
+      vals <- subset_data$mean_value[subset_data$method == m]
+      data.frame(
+        Method = m,
+        Value = as.numeric(quantile(vals, probs = c(0, 0.25, 0.5, 0.75))),
+        n = sample_n, similarity = sim
+      )
+    }))
+  }))
+})) %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Net_Transfer") ~ "Representation Transfer",
+    str_detect(Method, "ARMUL_transfer") ~ "ARMUL",
+    str_detect(Method, "pERM_Transfer") ~ "pERM",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    TRUE ~ Method
+  )) %>%
+  mutate(Method = factor(Method, levels = method_order))
+
+PLM_MSE_main <- ggplot(plm_main_data, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2, width = box_width) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(x = "Method", y = "Mean MSE") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), legend.position = "bottom") +
+  scale_y_log10() +
+  coord_cartesian(ylim = c(1e-5, NA)) +
+  scale_fill_manual(values = colors)
+
+# --- Panel C: CATE ---
+cate_main_patterns <- c("Para_Transfer_Tuned", "NonPara_Transfer_Tuned", "Baseline",
+                         "Sai_Transfer", "Net_Transfer", "ARMUL_transfer", "pERM_transfer", "Pooled")
+cate_main_combined <- cate_results[
+  Reduce(`|`, lapply(cate_main_patterns, function(p) grepl(p, cate_results$Method))),
+] %>%
+  filter(similarity %in% main_similarity_list) %>%
+  mutate(Method = case_when(
+    grepl("^Baseline", Method) ~ "Baseline",
+    grepl("^Sai_Transfer", Method) ~ "Sai_Transfer",
+    grepl("^Para_Transfer", Method) ~ "Para_Transfer_Tuned",
+    grepl("^NonPara_Transfer", Method) ~ "NonPara_Transfer_Tuned",
+    grepl("^Net_Transfer", Method) ~ "Net_Transfer",
+    grepl("^ARMUL_transfer", Method) ~ "ARMUL_transfer",
+    grepl("^pERM_transfer", Method) ~ "pERM_transfer",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    TRUE ~ Method
+  ))
+
+CATE_Mean_main_trimmed <- cate_main_combined %>%
+  group_by(Method, n, similarity, seed) %>%
+  summarise(MaxMSE = mean(c_across(starts_with("Task")), na.rm = TRUE), .groups = "drop") %>%
+  group_by(Method, n, similarity) %>%
+  group_modify(~ {
+    bp_stats <- boxplot.stats(.x$MaxMSE, coef = 1)$stats
+    .x %>% filter(MaxMSE >= bp_stats[1], MaxMSE <= bp_stats[5])
+  }) %>%
+  ungroup() %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "NonPara_Transfer_Tuned") ~ "Late Fusion with Nuisance",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Net_Transfer") ~ "Representation Transfer",
+    str_detect(Method, "ARMUL_transfer") ~ "ARMUL",
+    str_detect(Method, "pERM_transfer") ~ "pERM",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    TRUE ~ Method
+  )) %>%
+  filter(!Method %in% c("Representation Transfer")) %>%
+  mutate(Method = factor(Method, levels = method_order))
+
+CATE_Mean_main <- ggplot(CATE_Mean_main_trimmed, aes(x = Method, y = MaxMSE, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2, width = box_width) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(x = "Method", y = "Mean MSE") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), strip.text = element_text(size = 8), legend.position = "bottom") +
+  scale_fill_manual(values = colors) +
+  scale_y_log10()
+
+# --- Panel B: DR ---
+dr_main_combined <- dr_results %>%
+  filter(similarity %in% main_similarity_list) %>%
+  mutate(Method = case_when(
+    grepl("^Baseline", Method) ~ "Baseline",
+    grepl("^Sai_Transfer", Method) ~ "Sai_Transfer",
+    grepl("^Para_Transfer_Tuned", Method) ~ "Para_Transfer_Tuned",
+    grepl("^Pooled", Method) ~ "Pooled",
+    grepl("^ARMUL", Method) ~ "ARMUL",
+    grepl("^pERM", Method) ~ "pERM",
+    TRUE ~ Method
+  ))
+
+DR_Mean_main_trimmed <- dr_main_combined %>%
+  group_by(Method, n, similarity, seed) %>%
+  summarise(MaxMSE = mean(c_across(starts_with("Task")), na.rm = TRUE), .groups = "drop") %>%
+  group_by(Method, n, similarity) %>%
+  group_modify(~ {
+    bp_stats <- boxplot.stats(.x$MaxMSE, coef = 1)$stats
+    .x %>% filter(MaxMSE >= bp_stats[1], MaxMSE <= bp_stats[4])
+  }) %>%
+  ungroup() %>%
+  mutate(Method = case_when(
+    str_detect(Method, "Baseline") ~ "Baseline",
+    str_detect(Method, "Sai_Transfer") ~ "Oracle Trans-Lasso",
+    str_detect(Method, "Para_Transfer_Tuned") ~ "Late Fusion",
+    str_detect(Method, "Pooled") ~ "Data Pooling",
+    str_detect(Method, "ARMUL") ~ "ARMUL",
+    str_detect(Method, "pERM") ~ "pERM",
+    TRUE ~ Method
+  )) %>%
+  # Whitelist against method_order (not just the literal untuned
+  # "Para_Transfer" string) so the garbled "Para_Transfer1".."Para_Transfer1198"
+  # row-name-deduplication artifacts in dr_results don't survive as an
+  # unmapped grey "NA" box -- filtering by exact-string-inequality before
+  # converting to a factor does not catch those, since each one differs from
+  # the literal string "Para_Transfer".
+  filter(Method %in% method_order) %>%
+  mutate(Method = factor(Method, levels = method_order))
+
+DR_Mean_main <- ggplot(DR_Mean_main_trimmed, aes(x = Method, y = MaxMSE, fill = Method)) +
+  geom_boxplot(outlier.shape = NA, coef = 2, width = box_width) +
+  facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  labs(x = "Method", y = "Mean MSE") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), strip.text = element_text(size = 8), legend.position = "bottom") +
+  scale_fill_manual(values = colors) +
+  scale_y_log10()
+```
+
+```{r}
+library(cowplot)
+library(ggplot2)
+
+p1_main <- PLM_MSE_main +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors, name = NULL) + big_font_theme
+
+p2_main <- CATE_Mean_main +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors, breaks = method_order, name = NULL) + big_font_theme
+
+p3_main <- DR_Mean_main +
+  scale_color_manual(values = colors, breaks = method_order) +
+  scale_fill_manual(values = colors, breaks = method_order, name = NULL) +
+  scale_y_log10(limits = c(0.025, 0.3)) + big_font_theme
+
+p1_leg_main <- p1_main +
+  theme(
+    legend.position = "right",
+    legend.box = "horizontal",
+    legend.title = element_blank()
+  ) +
+  guides(
+    fill = guide_legend(nrow = 2, byrow = TRUE),
+    color = guide_legend(nrow = 2, byrow = TRUE)
+  )
+legend_main <- get_legend(p1_leg_main)
+
+p1_noleg_main <- p1_main +
+  theme(legend.position = "none", axis.title.x = element_blank(),
+        axis.title.y = element_blank(), plot.margin = margin(2, 2, 2, 2))
+p3_noleg_main <- p3_main +
+  theme(legend.position = "none", axis.title.x = element_blank(),
+        axis.title.y = element_blank(), plot.margin = margin(2, 2, 2, 2))
+p2_noleg_main <- p2_main +
+  theme(legend.position = "none", axis.title.x = element_blank(),
+        axis.title.y = element_blank(), plot.margin = margin(2, 2, 2, 2))
+
+# A, B, C listed left to right.
+top_row_main <- plot_grid(
+  p1_noleg_main, p3_noleg_main, p2_noleg_main,
+  ncol = 3,
+  align = "hv",
+  axis = "tblr",
+  labels = c("A", "B", "C"),
+  label_size = 25
+)
+
+combined_plot_main <- plot_grid(
+  top_row_main,
+  legend_main,
+  ncol = 1,
+  rel_heights = c(1, 0.12)
+)
+combined_plot_main <- ggdraw(combined_plot_main) +
+  theme(plot.margin = margin(80, 60, 80, 60))
+
+combined_plot_main
+
+ggsave(
+  filename = file.path(figure_dir, "MSE_Mean_combined_plot_horizontal_main4.pdf"),
+  plot = combined_plot_main,
+  width = 30,
+  height = 12,
+  dpi = 300
+)
+```
+
 
 ```{r}
 

@@ -36,6 +36,12 @@ implemented_mse_dir <- file.path(base_dir, implemented_mse_name)
 global_mse_dir <- file.path(base_dir, "results_finetune_new8")
 implemented_time_dir <- file.path(base_dir, "results_11_dim8")
 global_time_dir <- file.path(base_dir, "results_finetune_new_time8")
+# "Implemented with More Parameters" reuses test_PLM.R with lambda_length=200
+# instead of 100. It writes into the same results_11_dim8 tree as the
+# regular Implemented method, distinguished only by the "lambda_len200"
+# settings-folder suffix.
+more_parameters_mse_dir <- file.path(base_dir, "results_11_dim8")
+more_parameters_time_dir <- file.path(base_dir, "results_11_dim8")
 derived_dir <- config$derived_dir
 figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
@@ -52,12 +58,20 @@ if (length(missing_dirs)) {
 
 library(dplyr)
 library(ggplot2)
-library(gridExtra)
+library(cowplot)
 
 keep_similarity <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
-implemented_label <- "Late Fusion with Nuisance"
-global_label <- "Global Fine-tuned Late Fusion with Nuisance"
-more_parameters_label <- "Late Fusion with Nuisance (more parameters)"
+# Short labels used consistently in both the MSE and Time panels, and a
+# shared color per method so the same method is the same color everywhere.
+implemented_label <- "Implemented"
+global_label <- "Global Fine-tuned"
+more_parameters_label <- "Implemented with More Parameters"
+method_levels <- c(global_label, implemented_label, more_parameters_label)
+method_colors <- c(
+  "Global Fine-tuned" = "#F8766D",
+  "Implemented" = "#00BA38",
+  "Implemented with More Parameters" = "#619CFF"
+)
 custom_labeller <- labeller(
   n = function(value) paste0("n = ", value),
   similarity = function(value) value
@@ -137,13 +151,37 @@ read_runtime_collection <- function(root, file_pattern, setting_pattern,
   result <- do.call(rbind, rows)
   result[is.finite(result$runtime_minutes) & result$runtime_minutes > 0, ]
 }
-```
 
-The attached notebook also refers to `results_6_dim8/` and lambda-length-200
-timing results for an “Implemented with More Parameters” series. Those inputs
-are not present in this repository, so that series is not fabricated or
-silently replaced. All figures supported by the available implemented and
-global fine-tuned results are rendered below.
+empty_mse <- function() {
+  data.frame(seed = integer(), n = integer(), similarity = numeric(),
+             Method = character(), mean_mse = numeric(), maximum_mse = numeric(),
+             source_file = character(), stringsAsFactors = FALSE)
+}
+empty_runtime <- function() {
+  data.frame(seed = integer(), n = integer(), similarity = numeric(),
+             Method = character(), runtime_minutes = numeric(),
+             source_file = character(), stringsAsFactors = FALSE)
+}
+
+# "Implemented with More Parameters" (lambda_length=200) is a simulation run
+# in progress at the time this was written. Its collector returns an empty
+# (not missing/fabricated) data frame if no matching files exist yet, rather
+# than failing the whole render -- the other two series still render while
+# this one is incomplete.
+read_mse_collection_optional <- function(root, setting_pattern, method_label) {
+  tryCatch(
+    read_mse_collection(root, setting_pattern, method_label),
+    error = function(e) empty_mse()
+  )
+}
+read_runtime_collection_optional <- function(root, file_pattern, setting_pattern,
+                                             runtime_column, method_label) {
+  tryCatch(
+    read_runtime_collection(root, file_pattern, setting_pattern, runtime_column, method_label),
+    error = function(e) empty_runtime()
+  )
+}
+```
 
 ## MSE inputs
 
@@ -162,16 +200,24 @@ global_mse <- read_mse_collection(
 ) %>%
   filter(round(similarity, 1) %in% keep_similarity)
 
+more_parameters_mse <- read_mse_collection_optional(
+  more_parameters_mse_dir,
+  "^mse_n_([0-9]+)_simi_([0-9.]+)lambda_len200$",
+  more_parameters_label
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
 write.csv(implemented_mse, file.path(derived_dir, "implemented_mse_by_seed.csv"), row.names = FALSE)
 write.csv(global_mse, file.path(derived_dir, "global_finetuned_mse_by_seed.csv"), row.names = FALSE)
+write.csv(more_parameters_mse, file.path(derived_dir, "more_parameters_mse_by_seed.csv"), row.names = FALSE)
 
 data.frame(
   Method = c(global_label, implemented_label, more_parameters_label),
-  Available_records = c(nrow(global_mse), nrow(implemented_mse), 0L),
+  Available_records = c(nrow(global_mse), nrow(implemented_mse), nrow(more_parameters_mse)),
   Input = c(
     file.path(basename(base_dir), "results_finetune_new8"),
     file.path(basename(base_dir), implemented_mse_name),
-    "results_6_dim8 is not present"
+    file.path(basename(base_dir), "results_11_dim8 (lambda_len200)")
   )
 )
 ```
@@ -216,26 +262,35 @@ p_global_mse
 
 ## Fine-tuning method comparison
 
-At n=200, only common `(n, similarity, seed)` settings are compared so that
-the implemented method does not receive extra replications merely because
-more legacy files exist. `results_finetune_new8` (the Global Fine-tuned
-source) has no n=100 data at all, so the n=100 row below shows the
-Implemented method only, using its full n=100 seed set -- there is nothing
-to match it against.
+`results_finetune_new8` (the Global Fine-tuned source) historically has only
+10 legacy seeds at n=200, far fewer than Implemented/More-Parameters' 100.
+At n=200, Implemented and More-Parameters are therefore restricted to the
+`(n, similarity, seed)` combinations that actually exist for Global, so no
+method gets extra replications merely because more files exist for it. At
+n=100, Global now has its own up-to-100-seed run (no 10-seed legacy
+restriction applies), so all three series are combined directly with no
+subsetting.
 
 ```{r mse-comparison, fig.width=10, fig.height=8}
-common_mse_keys <- global_mse %>% select(seed, n, similarity) %>% distinct()
-implemented_mse_common <- implemented_mse %>%
-  inner_join(common_mse_keys, by = c("seed", "n", "similarity"))
-if (!nrow(implemented_mse_common)) {
-  stop("No common MSE settings exist between implemented and fine-tuned results.")
+global_mse_200 <- global_mse %>% filter(n == 200)
+common_mse_keys_200 <- global_mse_200 %>% select(seed, n, similarity) %>% distinct()
+implemented_mse_200 <- implemented_mse %>%
+  filter(n == 200) %>%
+  inner_join(common_mse_keys_200, by = c("seed", "n", "similarity"))
+more_parameters_mse_200 <- more_parameters_mse %>%
+  filter(n == 200) %>%
+  inner_join(common_mse_keys_200, by = c("seed", "n", "similarity"))
+if (!nrow(implemented_mse_200)) {
+  stop("No common n=200 MSE settings exist between implemented and fine-tuned results.")
 }
-implemented_mse_n100 <- implemented_mse %>% filter(n == 100)
-mse_comparison <- bind_rows(global_mse, implemented_mse_common, implemented_mse_n100) %>%
-  mutate(Method = factor(
-    Method,
-    levels = c(global_label, implemented_label, more_parameters_label)
-  ))
+
+mse_comparison <- bind_rows(
+  global_mse_200, implemented_mse_200, more_parameters_mse_200,
+  global_mse %>% filter(n == 100),
+  implemented_mse %>% filter(n == 100),
+  more_parameters_mse %>% filter(n == 100)
+) %>%
+  mutate(Method = factor(Method, levels = method_levels))
 write.csv(mse_comparison,
           file.path(derived_dir, "finetune_method_comparison_by_seed.csv"),
           row.names = FALSE)
@@ -243,13 +298,13 @@ write.csv(mse_comparison,
 p_mse_comparison <- ggplot(mse_comparison, aes(Method, mean_mse, fill = Method)) +
   geom_boxplot(outlier.shape = NA, coef = 2) +
   facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
+  scale_fill_manual(values = method_colors, drop = FALSE) +
   labs(x = NULL, y = "Mean MSE", fill = "Method") +
   theme_minimal(base_size = 18) +
   theme(
     axis.text.x = element_blank(), axis.ticks.x = element_blank(),
     axis.title.y = element_text(size = 20), strip.text = element_text(size = 15),
-    legend.title = element_text(size = 16), legend.text = element_text(size = 13),
-    legend.position = "bottom"
+    legend.position = "none"
   )
 # Not saved: this component plot is retained in the HTML only.
 # ggsave(file.path(figure_dir, "finetune_method_comparison.pdf"), p_mse_comparison,
@@ -265,7 +320,7 @@ global_runtime <- read_runtime_collection(
   "^time_seed_[0-9]+[.]csv$",
   "^mse_n_([0-9]+)_simi_([0-9.]+)$",
   "runtime_sec",
-  "Global Fine-tuned"
+  global_label
 ) %>%
   filter(round(similarity, 1) %in% keep_similarity)
 
@@ -274,26 +329,40 @@ implemented_runtime <- read_runtime_collection(
   "^time_data_seed_[0-9]+[.]csv$",
   "^_n_([0-9]+)_simi_([0-9.]+)lambda_len100$",
   "time_nonpar_transfer",
-  "Implemented"
+  implemented_label
 ) %>%
   filter(round(similarity, 1) %in% keep_similarity)
 
-common_runtime_keys <- global_runtime %>% select(seed, n, similarity) %>% distinct()
-implemented_runtime_common <- implemented_runtime %>%
-  inner_join(common_runtime_keys, by = c("seed", "n", "similarity"))
-if (!nrow(implemented_runtime_common)) {
-  stop("No common runtime settings exist between implemented and fine-tuned results.")
+more_parameters_runtime <- read_runtime_collection_optional(
+  more_parameters_time_dir,
+  "^time_data_seed_[0-9]+[.]csv$",
+  "^_n_([0-9]+)_simi_([0-9.]+)lambda_len200$",
+  "time_nonpar_transfer",
+  more_parameters_label
+) %>%
+  filter(round(similarity, 1) %in% keep_similarity)
+
+# Same n=200 common-seed restriction as the MSE comparison above (Global has
+# only 10 legacy seeds at n=200); n=100 combines all available data directly.
+global_runtime_200 <- global_runtime %>% filter(n == 200)
+common_runtime_keys_200 <- global_runtime_200 %>% select(seed, n, similarity) %>% distinct()
+implemented_runtime_200 <- implemented_runtime %>%
+  filter(n == 200) %>%
+  inner_join(common_runtime_keys_200, by = c("seed", "n", "similarity"))
+more_parameters_runtime_200 <- more_parameters_runtime %>%
+  filter(n == 200) %>%
+  inner_join(common_runtime_keys_200, by = c("seed", "n", "similarity"))
+if (!nrow(implemented_runtime_200)) {
+  stop("No common n=200 runtime settings exist between implemented and fine-tuned results.")
 }
-implemented_runtime_n100 <- implemented_runtime %>% filter(n == 100)
-runtime_comparison <- bind_rows(global_runtime, implemented_runtime_common, implemented_runtime_n100) %>%
-  mutate(Method = factor(
-    Method,
-    levels = c(
-      "Global Fine-tuned",
-      "Implemented",
-      "Implemented with More Parameters"
-    )
-  ))
+
+runtime_comparison <- bind_rows(
+  global_runtime_200, implemented_runtime_200, more_parameters_runtime_200,
+  global_runtime %>% filter(n == 100),
+  implemented_runtime %>% filter(n == 100),
+  more_parameters_runtime %>% filter(n == 100)
+) %>%
+  mutate(Method = factor(Method, levels = method_levels))
 write.csv(runtime_comparison,
           file.path(derived_dir, "runtime_comparison_by_seed.csv"),
           row.names = FALSE)
@@ -340,13 +409,13 @@ p_runtime_bar <- ggplot(runtime_summary, aes(Method, median, fill = Method)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2, linewidth = 0.7) +
   facet_grid(n ~ similarity, labeller = custom_labeller, scales = "free_y") +
   scale_y_log10(expand = expansion(mult = c(0.02, 0.02))) +
+  scale_fill_manual(values = method_colors, drop = FALSE) +
   labs(x = NULL, y = "Time (minutes)", fill = "Method") +
   theme_minimal(base_size = 18) +
   theme(
     axis.text.x = element_blank(), axis.ticks.x = element_blank(),
     axis.title.y = element_text(size = 20), strip.text = element_text(size = 15),
-    legend.title = element_text(size = 16), legend.text = element_text(size = 13),
-    legend.position = "bottom"
+    legend.position = "none"
   )
 # Not saved: this component plot is retained in the HTML only.
 # ggsave(file.path(figure_dir, "runtime_barplot.pdf"), p_runtime_bar,
@@ -356,9 +425,20 @@ p_runtime_bar
 
 ## Combined comparison
 
+A single shared "Method" legend (same colors/names in both panels) replaces
+the separate per-panel legends.
+
 ```{r combined-plot, fig.width=10, fig.height=12}
-combined <- gridExtra::arrangeGrob(p_mse_comparison, p_runtime_bar, ncol = 1)
+legend_source <- p_mse_comparison +
+  theme(legend.position = "bottom", legend.title = element_text(size = 16),
+        legend.text = element_text(size = 13))
+shared_legend <- cowplot::get_legend(legend_source)
+
+combined <- cowplot::plot_grid(
+  p_mse_comparison, p_runtime_bar, shared_legend,
+  ncol = 1, rel_heights = c(1, 1, 0.12)
+)
 ggsave(file.path(figure_dir, "tuning_strategy_compare.pdf"), combined,
        width = 10, height = 12, dpi = 300)
-gridExtra::grid.arrange(p_mse_comparison, p_runtime_bar, ncol = 1)
+combined
 ```

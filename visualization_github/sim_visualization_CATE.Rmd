@@ -518,3 +518,56 @@ ggsave(
 
 p
 ```
+
+## Heatmap, 4-method subset, left to right
+
+Alternate version of the heatmap above: only Baseline, Data Pooling, Late
+Fusion, and Late Fusion with Nuisance (ARMUL and Oracle Trans-Lasso dropped),
+arranged in a single row left to right.
+
+```{r}
+methods_4 <- c("Baseline", "Data Pooling", "Late Fusion", "Late Fusion with Nuisance")
+
+df_filtered_4 <- df_long %>%
+  filter(Method %in% methods_4) %>%
+  mutate(Method = factor(Method, levels = methods_4))
+
+p_4 <- ggplot(df_filtered_4, aes(x = task, y = similarity, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red", name = "Mean of Log") +
+  guides(fill = guide_colorbar(
+    barwidth = 15,
+    barheight = 2,
+    title.theme = element_text(size = 18),
+    label.theme = element_text(size = 20)
+  )) +
+  scale_x_discrete(labels = c(
+    "Task1" = "T1",
+    "Task2" = "T2",
+    "Task3" = "T3",
+    "Task4" = "T4",
+    "Task5" = "T5"
+  )) +
+  facet_wrap(~Method, ncol = 4) +
+  theme_minimal(base_size = 23) +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 15),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = grid::unit(1.5, "lines"),
+    legend.position = "bottom"
+  )
+
+ggsave(
+  file.path(figure_dir, "CATE_heat_map_CATE_4methods.pdf"),
+  plot = p_4,
+  width = 14,
+  height = 5,
+  dpi = 300
+)
+
+p_4
+```
