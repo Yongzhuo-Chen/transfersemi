@@ -216,9 +216,12 @@ p_global_mse
 
 ## Fine-tuning method comparison
 
-Only common `(n, similarity, seed)` settings are compared so that the
-implemented method does not receive extra replications merely because more
-legacy files exist.
+At n=200, only common `(n, similarity, seed)` settings are compared so that
+the implemented method does not receive extra replications merely because
+more legacy files exist. `results_finetune_new8` (the Global Fine-tuned
+source) has no n=100 data at all, so the n=100 row below shows the
+Implemented method only, using its full n=100 seed set -- there is nothing
+to match it against.
 
 ```{r mse-comparison, fig.width=10, fig.height=8}
 common_mse_keys <- global_mse %>% select(seed, n, similarity) %>% distinct()
@@ -227,7 +230,8 @@ implemented_mse_common <- implemented_mse %>%
 if (!nrow(implemented_mse_common)) {
   stop("No common MSE settings exist between implemented and fine-tuned results.")
 }
-mse_comparison <- bind_rows(global_mse, implemented_mse_common) %>%
+implemented_mse_n100 <- implemented_mse %>% filter(n == 100)
+mse_comparison <- bind_rows(global_mse, implemented_mse_common, implemented_mse_n100) %>%
   mutate(Method = factor(
     Method,
     levels = c(global_label, implemented_label, more_parameters_label)
@@ -280,7 +284,8 @@ implemented_runtime_common <- implemented_runtime %>%
 if (!nrow(implemented_runtime_common)) {
   stop("No common runtime settings exist between implemented and fine-tuned results.")
 }
-runtime_comparison <- bind_rows(global_runtime, implemented_runtime_common) %>%
+implemented_runtime_n100 <- implemented_runtime %>% filter(n == 100)
+runtime_comparison <- bind_rows(global_runtime, implemented_runtime_common, implemented_runtime_n100) %>%
   mutate(Method = factor(
     Method,
     levels = c(

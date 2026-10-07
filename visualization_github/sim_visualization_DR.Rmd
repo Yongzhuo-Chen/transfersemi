@@ -49,44 +49,43 @@ colors <- c(
 library(ggplot2)
 sample_sizes <- c(100, 200)
 similarity_values <- c(0, 0.2, 0.4, 0.6, 0.8, 1)
-combined_results <- list()
-for (n in sample_sizes) {
-  for (sim in similarity_values) {
-    folder_path <- file.path(dr_dir, paste0("mse_n_", n, "_simi_", sim))
-    rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
-    
-    for (file in rdata_files) {
-      seed_val <- suppressWarnings(as.integer(tools::file_path_sans_ext(basename(file))))
-      if (is.na(seed_val)) stop("Cannot infer a numeric seed from ", file, call. = FALSE)
-      
-      temp_env <- new.env()
-      load(file, envir = temp_env)
-      
-      # Identify the data object (assumes it's called 'result' or the first non-'seed' object)
-      obj_names <- setdiff(ls(envir = temp_env), "seed")
-      if ("result" %in% obj_names) {
-        data_obj <- temp_env$result
-      } else {
-        data_obj <- get(obj_names[1], envir = temp_env)
+if (config$mode == "previous") {
+  final_combined <- read_previous_dr_results(config$results_root)
+} else {
+  combined_results <- list()
+  for (n in sample_sizes) {
+    for (sim in similarity_values) {
+      folder_path <- file.path(dr_dir, paste0("mse_n_", n, "_simi_", sim))
+      rdata_files <- list.files(folder_path, pattern = "\\.RData$", full.names = TRUE)
+
+      for (file in rdata_files) {
+        seed_val <- suppressWarnings(as.integer(tools::file_path_sans_ext(basename(file))))
+        if (is.na(seed_val)) stop("Cannot infer a numeric seed from ", file, call. = FALSE)
+
+        temp_env <- new.env()
+        load(file, envir = temp_env)
+
+        obj_names <- setdiff(ls(envir = temp_env), "seed")
+        if ("result" %in% obj_names) {
+          data_obj <- temp_env$result
+        } else {
+          data_obj <- get(obj_names[1], envir = temp_env)
+        }
+
+        data_obj <- as.data.frame(data_obj)
+        data_obj$n <- n
+        data_obj$similarity <- sim
+        data_obj$seed <- seed_val
+        combined_results[[length(combined_results) + 1]] <- data_obj
       }
-      
-      # Convert to a data frame, if needed
-      data_obj <- as.data.frame(data_obj)
-      
-      # Record n, similarity, and seed
-      data_obj$n <- n
-      data_obj$similarity <- sim
-      data_obj$seed <- seed_val
-      
-      combined_results[[length(combined_results) + 1]] <- data_obj
     }
   }
-}
 
-if (length(combined_results) == 0L) {
-  stop("No DR results found under ", dr_dir, ".", call. = FALSE)
+  if (length(combined_results) == 0L) {
+    stop("No simulated DR results found under ", dr_dir, ".", call. = FALSE)
+  }
+  final_combined <- do.call(rbind, combined_results)
 }
-final_combined <- do.call(rbind, combined_results)
 
 save(final_combined, file = combined_file)
 

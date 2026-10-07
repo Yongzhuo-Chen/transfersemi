@@ -24,8 +24,7 @@ derived_dir <- config$derived_dir
 figure_dir <- config$figure_dir
 dir.create(derived_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
-work_dir <- file.path(config$results_root, "results_4_dim8")
-results_11_dir <- file.path(config$results_root, "results_11_dim8")
+plm_raw_dir <- file.path(config$results_root, "results_11_dim8")
 compare_linear_dir <- file.path(config$results_root, "results_compare_linear_dim8")
 colors = c("brown3", "steelblue","steelblue1", "darkorange3", "darkgreen", "olivedrab4", "#D55E00")
 colors <- c(
@@ -204,7 +203,6 @@ print(p_box)
 
 ```{r}
 library(dplyr)
-work_dir <- results_11_dir
 
 read_folder_make_output <- function(folder_path, n, similarity) {
 
@@ -250,36 +248,51 @@ read_folder_make_output <- function(folder_path, n, similarity) {
   output
 }
 
-# Read the newly simulated PLM results directly. The historical
-# results_before_dim8 tree is not required and no replacement data are
-# inferred for it.
-if (!dir.exists(work_dir)) {
-  stop(
-    "Required PLM input is not available: ", work_dir,
-    call. = FALSE
-  )
+if (config$mode == "previous") {
+  # Match the historical MSE workflow using the saved seed-level files.
+  all_combined <- read_previous_plm_results(config$results_root)
+} else {
+  # Simulated mode reads only the newly generated seed-level PLM results.
+  if (!dir.exists(plm_raw_dir)) {
+    stop("Required simulated PLM input is not available: ", plm_raw_dir, call. = FALSE)
+  }
+
+  all_combined <- NULL
+  for (n in c(100, 200)) {
+    for (similarity in c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) {
+      folder_base <- file.path(
+        plm_raw_dir,
+        sprintf("mse_n_%d_simi_%slambda_len100", n, similarity)
+      )
+      if (!dir.exists(folder_base)) {
+        stop("Missing simulated PLM result directory: ", folder_base, call. = FALSE)
+      }
+      final_out <- read_folder_make_output(folder_base, n, similarity) %>%
+        arrange(method, seed)
+      all_combined <- bind_rows(all_combined, final_out)
+    }
+  }
 }
 
-all_combined <- NULL
-
+# The later plotting chunks consume one derived file per setting in both modes.
 for (n in c(100, 200)) {
   for (similarity in c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) {
-
-    folder_base <- file.path(work_dir, sprintf("mse_n_%d_simi_%slambda_len100", n, similarity))
-
-    output_file <- file.path(derived_dir, sprintf("mse_n_%d_simi_%.2f.RData", n, similarity))
-
-    if (!dir.exists(folder_base)) {
-      stop("Missing newly simulated PLM result directory: ", folder_base, call. = FALSE)
-    }
-    final_out <- read_folder_make_output(folder_base, n, similarity) %>%
+    current_n <- n
+    current_similarity <- similarity
+    output <- all_combined %>%
+      filter(
+        .data$n == .env$current_n,
+        near(.data$similarity, .env$current_similarity)
+      ) %>%
       arrange(method, seed)
-
-    # save back to the SAME file (in work_dir)
-    output <- final_out
+    if (nrow(output) == 0L) {
+      stop("No PLM rows for n=", n, ", similarity=", similarity, call. = FALSE)
+    }
+    output_file <- file.path(
+      derived_dir,
+      sprintf("mse_n_%d_simi_%.2f.RData", n, similarity)
+    )
     save(output, file = output_file)
-
-    all_combined <- bind_rows(all_combined, final_out)
   }
 }
 
