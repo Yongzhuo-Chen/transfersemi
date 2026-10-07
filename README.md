@@ -311,6 +311,14 @@ The visualization code is organized as follows:
   selected input root and the matching, separated output directories.
 - `visualization_github/*.Rmd`: figure definitions and `ggsave()` calls.
 
+`PLM_Visualization_PLM.Rmd` and `sim_visualization_CATE.Rmd` are exceptions to
+the "same code, different root" pattern above: in "previous" mode they read
+`MSE_visualization_data.rds`'s `plm`/`cate` components directly (the fuller
+historical aggregate -- up to 199 seeds for CATE, versus the 10 seeds in the
+raw `CATE_dim8` tree), while in "simulated" mode they read raw per-seed files
+from `results_11_dim8`/`CATE_dim8` under the selected root. The other four
+notebooks still follow the shared-renderer, different-root-only pattern.
+
 A clean previous-results render creates exactly these 14 standalone PDF
 figures:
 
@@ -330,6 +338,24 @@ outputs/figures_previous_results/sim_visualization_DR/DR_heat_map_DR.pdf
 outputs/figures_previous_results/read_real_analysis/corr.pdf
 outputs/figures_previous_results/read_real_analysis/combined_err.pdf
 ```
+
+Two further figures reproduce, as closely as this codebase allows, the
+corresponding figures as they appear in the main text of the submitted
+paper, rendered alongside (not replacing) the fuller versions above:
+
+```text
+outputs/figures_previous_results/MSE_visualization/MSE_Mean_combined_plot_horizontal_main4.pdf
+outputs/figures_previous_results/sim_visualization_CATE/CATE_heat_map_CATE_4methods.pdf
+```
+
+`MSE_Mean_combined_plot_horizontal_main4.pdf` reproduces the main-text
+layout: panels A (PLM), B (DR), C (CATE) arranged left to right instead of
+`MSE_Mean_combined_plot_sm.pdf`'s top-to-bottom stack, and restricted to the
+four similarity values reported in the main text (0, 0.4, 0.8, 1) instead of
+the full six-value grid. `CATE_heat_map_CATE_4methods.pdf` reproduces the
+main-text method subset (Baseline, Data Pooling, Late Fusion, Late Fusion
+with Nuisance only, left to right), versus `CATE_heat_map_CATE.pdf`'s full
+six-method version.
 
 ## 8. Pseudo-data and restricted-data limitations
 
